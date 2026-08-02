@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lead Board</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #15233c;
+      --muted: #62708a;
+      --line: #dfe5ee;
+      --surface: #ffffff;
+      --canvas: #f4f7fb;
+      --navy: #172a4d;
+      --blue: #3664e8;
+      --high: #cf3d56;
+      --high-soft: #fff0f3;
+      --medium: #b36b00;
+      --medium-soft: #fff7e6;
+      --low: #25805e;
+      --low-soft: #eaf8f2;
+      --shadow: 0 16px 38px rgba(31, 48, 80, .10);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 6% 0%, rgba(54, 100, 232, .10), transparent 28rem),
+        var(--canvas);
+      color: var(--ink);
+      font: 14px/1.45 Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .shell {
+      width: min(1880px, 100%);
+      margin: 0 auto;
+      padding: 28px clamp(18px, 3vw, 46px) 42px;
+    }
+
+    .hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      margin: 0 0 7px;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(28px, 3vw, 44px);
+      line-height: 1.05;
+      letter-spacing: -.035em;
+    }
+
+    .subtitle {
+      max-width: 720px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .primary,
+    .secondary {
+      min-height: 42px;
+      padding: 10px 16px;
+      border-radius: 11px;
+      border: 1px solid transparent;
+      font-weight: 750;
+      transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+
+    .primary {
+      background: var(--navy);
+      color: white;
+      box-shadow: 0 8px 20px rgba(23, 42, 77, .18);
+    }
+
+    .secondary {
+      border-color: var(--line);
+      background: white;
+      color: var(--ink);
+    }
+
+    .primary:hover,
+    .secondary:hover { transform: translateY(-1px); }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .lead-type-summary {
+      margin-bottom: 16px;
+      padding: 14px;
+      border: 1px solid rgba(223, 229, 238, .9);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .88);
+      box-shadow: 0 8px 24px rgba(31, 48, 80, .05);
+    }
+
+    .summary-title {
+      margin: 0 0 10px;
+      color: var(--navy);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .type-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 8px;
+    }
+
+    .type-stat {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid #e6eaf1;
+      border-radius: 11px;
+      background: #f8faff;
+    }
+
+    .type-stat-label {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .035em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .type-stat-value {
+      color: var(--navy);
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .stat {
+      position: relative;
+      overflow: hidden;
+      min-height: 96px;
+      padding: 18px 19px;
+      border: 1px solid rgba(223, 229, 238, .85);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .92);
+      box-shadow: 0 8px 24px rgba(31, 48, 80, .06);
+    }
+
+    .stat::after {
+      content: "";
+      position: absolute;
+      right: -22px;
+      bottom: -34px;
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      background: var(--accent, var(--blue));
+      opacity: .09;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      display: block;
+      margin-top: 5px;
+      color: var(--navy);
+      font-size: 28px;
+      font-weight: 850;
+      line-height: 1;
+    }
+
+    .workspace {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, .96);
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1 1 380px;
+      max-width: 540px;
+    }
+
+    .search-wrap svg {
+      position: absolute;
+      top: 50%;
+      left: 13px;
+      width: 18px;
+      color: #7f8aa1;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    #search {
+      width: 100%;
+      height: 42px;
+      padding: 0 14px 0 41px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      outline: none;
+      background: #f8faff;
+      color: var(--ink);
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+    #search:focus {
+      border-color: #8ca8f4;
+      box-shadow: 0 0 0 3px rgba(54, 100, 232, .11);
+    }
+
+    .toolbar-actions,
+    .filters {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toolbar-actions { flex-wrap: wrap; }
+
+    .type-filter {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 42px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #f8faff;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    #leadTypeFilter {
+      max-width: 190px;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--navy);
+      font-weight: 750;
+    }
+
+    .filters {
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #f5f7fb;
+    }
+
+    .filter {
+      min-width: 62px;
+      padding: 7px 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .filter.active {
+      background: white;
+      color: var(--navy);
+      box-shadow: 0 2px 8px rgba(31, 48, 80, .10);
+    }
+
+    .table-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 9px 15px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .table-scroll {
+      max-height: calc(100vh - 300px);
+      min-height: 360px;
+      overflow: auto;
+      scrollbar-color: #bcc6d7 transparent;
+    }
+
+    table {
+      width: 100%;
+      min-width: 2820px;
+      border-collapse: separate;
+      border-spacing: 0;
+      table-layout: auto;
+    }
+
+    thead th {
+      position: sticky;
+      z-index: 3;
+      top: 0;
+      padding: 0;
+      border-bottom: 1px solid #cfd7e4;
+      background: #eef2f8;
+      color: #526078;
+      text-align: left;
+      font-size: 11px;
+      letter-spacing: .045em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .sort-button {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      width: 100%;
+      min-height: 42px;
+      padding: 10px 12px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 800;
+      letter-spacing: inherit;
+      text-align: left;
+      text-transform: inherit;
+    }
+
+    .sort-button:hover { background: rgba(54, 100, 232, .06); }
+    .sort-mark { color: var(--blue); font-size: 12px; }
+
+    tbody td {
+      max-width: 270px;
+      padding: 11px 12px;
+      border-bottom: 1px solid #edf0f5;
+      color: #34425a;
+      vertical-align: top;
+    }
+
+    tbody tr:nth-child(even) { background: #fbfcfe; }
+    tbody tr:hover { background: #f1f5ff; }
+    tbody tr:last-child td { border-bottom: 0; }
+
+    th:nth-child(1), td:nth-child(1) { min-width: 210px; }
+    th:nth-child(2), td:nth-child(2) { min-width: 90px; }
+    th:nth-child(3), td:nth-child(3) { min-width: 210px; }
+    th:nth-child(4), td:nth-child(4) { min-width: 145px; }
+    th:nth-child(5), td:nth-child(5) { min-width: 220px; }
+    th:nth-child(6), td:nth-child(6) { min-width: 210px; }
+    th:nth-child(7), td:nth-child(7) { min-width: 170px; }
+    th:nth-child(8), td:nth-child(8) { min-width: 225px; }
+    th:nth-child(9), td:nth-child(9),
+    th:nth-child(10), td:nth-child(10) { min-width: 150px; }
+    th:nth-child(11), td:nth-child(11) { min-width: 120px; }
+    th:nth-child(12), td:nth-child(12) { min-width: 74px; }
+    th:nth-child(13), td:nth-child(13) { min-width: 92px; }
+    th:nth-child(14), td:nth-child(14) { min-width: 360px; }
+    th:nth-child(15), td:nth-child(15) { min-width: 170px; }
+    th:nth-child(16), td:nth-child(16) { min-width: 260px; }
+
+    .company {
+      min-width: 190px;
+      color: var(--navy);
+      font-weight: 780;
+    }
+
+    .muted { color: #97a0b1; }
+    .wrap { white-space: normal; overflow-wrap: anywhere; }
+    .nowrap { white-space: nowrap; }
+
+    a {
+      color: #2658d8;
+      text-decoration: none;
+      text-underline-offset: 2px;
+    }
+
+    a:hover { text-decoration: underline; }
+    .link-list { display: grid; gap: 3px; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 66px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .badge-high { background: var(--high-soft); color: var(--high); }
+    .badge-medium { background: var(--medium-soft); color: var(--medium); }
+    .badge-low { background: var(--low-soft); color: var(--low); }
+
+    .type-badge {
+      display: inline-flex;
+      padding: 4px 8px;
+      border: 1px solid #dbe3f2;
+      border-radius: 7px;
+      background: #f1f5ff;
+      color: #294b9b;
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .035em;
+      white-space: nowrap;
+    }
+
+    .score {
+      display: inline-grid;
+      place-items: center;
+      min-width: 34px;
+      height: 30px;
+      padding: 0 8px;
+      border-radius: 9px;
+      font-weight: 900;
+    }
+
+    .score-high { background: var(--high-soft); color: var(--high); }
+    .score-medium { background: var(--medium-soft); color: var(--medium); }
+    .score-low { background: var(--low-soft); color: var(--low); }
+
+    .empty {
+      padding: 60px 24px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .footer-note {
+      margin: 14px 2px 0;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: right;
+    }
+
+    @media (max-width: 1100px) {
+      .hero { align-items: flex-start; flex-direction: column; }
+      .toolbar { align-items: stretch; flex-direction: column; }
+      .search-wrap { max-width: none; flex-basis: auto; }
+      .toolbar-actions { justify-content: space-between; }
+      .table-scroll { max-height: calc(100vh - 350px); }
+    }
+
+    @media (max-width: 720px) {
+      .shell { padding: 20px 12px 30px; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .type-stats { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+      .toolbar-actions { align-items: stretch; flex-direction: column; }
+      .type-filter { justify-content: space-between; }
+      .filters { overflow-x: auto; }
+      .secondary { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Offline lead workspace</p>
+        <h1>Lead Board</h1>
+        <p class="subtitle">
+          Швидкий перегляд, пошук і сортування потенційних клієнтів —
+          повністю локально, без сервера.
+        </p>
+      </div>
+      <button class="primary" id="highOnly" type="button">Показати тільки HIGH</button>
+    </header>
+
+    <section class="stats" aria-label="Лічильники">
+      <article class="stat" style="--accent:#3664e8">
+        <span class="stat-label">Всього</span>
+        <strong class="stat-value" id="countAll">0</strong>
+      </article>
+      <article class="stat" style="--accent:#cf3d56">
+        <span class="stat-label">High</span>
+        <strong class="stat-value" id="countHigh">0</strong>
+      </article>
+      <article class="stat" style="--accent:#d48818">
+        <span class="stat-label">Medium</span>
+        <strong class="stat-value" id="countMedium">0</strong>
+      </article>
+      <article class="stat" style="--accent:#25805e">
+        <span class="stat-label">Low</span>
+        <strong class="stat-value" id="countLow">0</strong>
+      </article>
+    </section>
+
+    <section class="lead-type-summary" aria-label="Статистика за типом ліда">
+      <h2 class="summary-title">Статистика за lead_type</h2>
+      <div class="type-stats" id="leadTypeStats"></div>
+    </section>
+
+    <section class="workspace">
+      <div class="toolbar">
+        <label class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m20 20-3.5-3.5"></path>
+          </svg>
+          <input id="search" type="search" placeholder="Пошук за назвою, містом, контактом…" autocomplete="off">
+        </label>
+        <div class="toolbar-actions">
+          <label class="type-filter">
+            <span>Lead type</span>
+            <select id="leadTypeFilter" aria-label="Фільтр за типом ліда">
+              <option value="ALL">Усі типи</option>
+            </select>
+          </label>
+          <div class="filters" role="group" aria-label="Фільтр пріоритету">
+            <button class="filter active" data-priority="ALL" type="button">Усі</button>
+            <button class="filter" data-priority="HIGH" type="button">HIGH</button>
+            <button class="filter" data-priority="MEDIUM" type="button">MEDIUM</button>
+            <button class="filter" data-priority="LOW" type="button">LOW</button>
+          </div>
+          <button class="secondary" id="exportCsv" type="button">Експортувати CSV</button>
+        </div>
+      </div>
+      <div class="table-meta">
+        <span id="visibleCount">Показано: 0</span>
+        <span>Натисніть заголовок колонки для сортування</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr id="headerRow"></tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div class="empty" id="emptyState" hidden>За цими умовами нічого не знайдено.</div>
+      </div>
+    </section>
+    <p class="footer-note">Дані збережені всередині цього HTML-файлу.</p>
+  </main>
+
+  <script id="lead-data" type="application/json">{"columns":["name","city","address","phone","website","email","category","overture_id","latitude","longitude","source_release","score","priority","score_reasons","lead_type","recommended_offer"],"leadTypes":["NO_WEBSITE","INSTAGRAM_ONLY","GOOGLE_MAPS_ONLY","BUSINESS_SITE","SOCIAL_ONLY","HTTP_WEBSITE","MODERN_WEBSITE","UNKNOWN"],"rows":[{"name":"Antikor Number 1","city":"Київ","address":"Степана Бандери проспект, 16А","phone":"+380504710067","website":"","email":"antikornumber1@gmail.com","category":"automotive_repair","overture_id":"a423ad7f-3cbf-43b6-8868-49ab3712bd22","latitude":"50.4866943359375","longitude":"30.501298904418945","source_release":"2026-07-22.0","score":"6","priority":"HIGH","score_reasons":"+5: немає website | +1: email на загальнодоступному сервісі","lead_type":"NO_WEBSITE","recommended_offer":"Новий сайт із онлайн-записом"},{"name":"GOOD SERVICE (Крюківщина)","city":"Київ","address":"Вишнева вулиця, 18","phone":"+380770042992","website":"","email":"goodserviceavto@gmail.com","category":"automotive_repair","overture_id":"0fefe8a3-becb-4fc2-9957-fc26cff867b9","latitude":"50.3853759765625","longitude":"30.397724151611328","source_release":"2026-07-22.0","score":"6","priority":"HIGH","score_reasons":"+5: немає website | +1: email на загальнодоступному сервісі","lead_type":"NO_WEBSITE","recommended_offer":"Новий сайт із онлайн-записом"},{"name":"СТО Remcars","city":"Київ","address":"Вулица Омеляна Пріцака, 4","phone":"+380983576969","website":"","email":"andryzhur@gmail.com","category":"automotive_repair","overture_id":"33b50edd-20e4-49a7-b232-5e3b491f89f9","latitude":"50.468807220458984","longitude":"30.371435165405273","source_release":"2026-07-22.0","score":"6","priority":"HIGH","score_reasons":"+5: немає website | +1: email на загальнодоступному сервісі","lead_type":"NO_WEBSITE","recommended_offer":"Новий сайт із онлайн-записом"},{"name":"Gas Lion Автосервіс, СТО та автомагазин","city":"Київ","address":"Міська вулиця, 2","phone":"+380688003010","website":"https://www.tiktok.com/@gaslionkyiv?_t=ZM-8vxZTp9jwRB","email":"saitgaslion@gmail.com","category":"automotive_repair","overture_id":"227a52a5-e4dc-43b4-b199-6e8a85e64dbc","latitude":"50.528289794921875","longitude":"30.36924934387207","source_release":"2026-07-22.0","score":"5","priority":"HIGH","score_reasons":"+4: website веде на соцмережу або Google Maps | +1: email на загальнодоступному сервісі","lead_type":"SOCIAL_ONLY","recommended_offer":"Сайт із SEO та формою запису"},{"name":"vianor_grinchenka","city":"Київ","address":"Миколи Грінченка вулиця, 18","phone":"+380972204422","website":"","email":"","category":"tire_dealer_and_repair","overture_id":"dee1224c-d1e1-4edf-8f98-f65a75b39460","latitude":"50.41328048706055","longitude":"30.51863670349121","source_release":"2026-07-22.0","score":"5","priority":"HIGH","score_reasons":"+5: немає website","lead_type":"NO_WEBSITE","recommended_offer":"Новий сайт із онлайн-записом"},{"name":"X-Team","city":"Київ","address":"Мельника вулиця, 15","phone":"+380989952422","website":"https://youtu.be/0vk4ykbgy-0?si=Xoi1eMmHqSrgrEUE","email":"xteam.rt@gmail.com","category":"automotive_repair","overture_id":"891f7bfa-9c21-479c-b4bc-090cf44f97dd","latitude":"50.57107925415039","longitude":"30.667985916137695","source_release":"2026-07-22.0","score":"5","priority":"HIGH","score_reasons":"+4: website веде на соцмережу або Google Maps | +1: email на загальнодоступному сервісі","lead_type":"SOCIAL_ONLY","recommended_offer":"Сайт із SEO та формою запису"},{"name":"ГБО КИЇВ","city":"Київ","address":"Березняківська вулиця, 21А","phone":"+380688886655","website":"https://www.google.com/maps?cid=11401770756489500377","email":"kovdania@gmail.com","category":"automotive_repair","overture_id":"a70313e9-b5fd-4ee6-ac5c-47bd57cca402","latitude":"50.42195510864258","longitude":"30.607158660888672","source_release":"2026-07-22.0","score":"5","priority":"HIGH","score_reasons":"+4: website веде на соцмережу або Google Maps | +1: email на загальнодоступному сервісі","lead_type":"GOOGLE_MAPS_ONLY","recommended_offer":"Лендінг + онлайн-запис"},{"name":"Hunters Garage","city":"Київ","address":"Сумська вулиця, 3","phone":"+380933308000","website":"https://www.youtube.com/@HuntersGarageService","email":"service@hunters-garage.com.ua","category":"automotive_repair","overture_id":"c382d57d-81ee-4490-b387-56b61adf78dc","latitude":"50.39508056640625","longitude":"30.48834228515625","source_release":"2026-07-22.0","score":"4","priority":"MEDIUM","score_reasons":"+4: website веде на соцмережу або Google Maps","lead_type":"SOCIAL_ONLY","recommended_offer":"Сайт із SEO та формою запису"},{"name":"Art Customs Service","city":"Київ","address":"Незалежності, 7","phone":"+380981113466","website":"http://artcustoms.com.ua/","email":"brovary.art.customs@gmail.com","category":"automotive_repair","overture_id":"cce8d993-e736-40df-b55c-3174f30e1e1f","latitude":"50.514488220214844","longitude":"30.79561996459961","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Autoservice Maslenka","city":"Київ","address":"Глибочицька вулиця, 101","phone":"+380443380848","website":"http://maslenka.ua/","email":"maslenkakiev@gmail.com","category":"automotive_repair","overture_id":"9ce15acf-712e-47d2-9bde-b7e21417bb18","latitude":"50.46332931518555","longitude":"30.50607681274414","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"AВА Сервіс","city":"Чернігів","address":"Ивана Мазепы улица, 57Е","phone":"+380631706373","website":"http://www.ctoava.net.ua/","email":"ctoava@ukr.net","category":"automotive_repair","overture_id":"e83bd701-d3cf-4c7b-ad60-542c1c83e5f1","latitude":"51.47391128540039","longitude":"31.2586612701416","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"BG AUTO","city":"Київ","address":"Вячеслава Черновола улица, 46","phone":"+380930810101","website":"http://ua.bastion.com.ua/","email":"bgauto@gmail.com","category":"automotive_repair","overture_id":"3da47ac0-120a-4bc7-9a1a-ff28f1f0c826","latitude":"50.387508392333984","longitude":"30.386489868164062","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"CarDon","city":"Київ","address":"Кирилівська вулиця, 69В","phone":"+380973214105","website":"http://www.cardon.com.ua/","email":"cardonshop@gmail.com","category":"automotive_repair","overture_id":"59dfeff8-0513-41ed-bbeb-1c87f2e99ca4","latitude":"50.47616958618164","longitude":"30.485918045043945","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"ChepaRacing","city":"Київ","address":"Васильківська вулиця, 2","phone":"+380674463102","website":"http://Www.cheparacing.com/","email":"oleksiiholovnia@gmail.com","category":"automotive_repair","overture_id":"dc07b789-52d1-48ac-8aa7-d5278cb3c241","latitude":"50.35282897949219","longitude":"30.461166381835938","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"CUBE3","city":"Київ","address":"Глибочицька вулиця, 16","phone":"+380934552337","website":"http://www.cube3.com.ua/","email":"cube3.com.ua@gmail.com","category":"automotive_repair","overture_id":"4d0a2f2f-34d4-45b3-bc66-2a949c342277","latitude":"50.460933685302734","longitude":"30.48894691467285","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Dark Box","city":"Київ","address":"Автозаводська вулиця, 24","phone":"+380660166777","website":"http://darkbox.com.ua/","email":"oleg.kashelyuk@gmail.com","category":"automotive_repair","overture_id":"341b1d41-5755-4a72-8eb2-96c8b7f317eb","latitude":"50.502464294433594","longitude":"30.46392250061035","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Glowith Auto","city":"Київ","address":"вулиця Гліба Бабича 2","phone":"+380968745575","website":"http://glowith-auto.ua/","email":"glowithauto@gmail.com","category":"automotive_repair","overture_id":"9fa6bee2-b1f2-4f3e-ad41-54b4be29ccc7","latitude":"50.44020080566406","longitude":"30.660799026489258","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"ItalService","city":"Київ","address":"Куренівська вулиця, 29","phone":"+380442234325","website":"http://italservice.kiev.ua/","email":"italservisekiev@gmail.com","category":"automotive_repair","overture_id":"642944fc-cb39-4dac-9a6e-d42f496f0ab7","latitude":"50.49888610839844","longitude":"30.47863006591797","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"LAB13 детейлинг центр: оклейка пленками, тюнинг, химчистка, автомойка","city":"Київ","address":"Столичное шоссе, 101в","phone":"+380730000130","website":"http://Lab13.com.ua/","email":"lab13detailing@gmail.com","category":"automotive_services_and_repair","overture_id":"687a1088-1d29-41f2-aafe-41be3d3153e9","latitude":"50.34493637084961","longitude":"30.552032470703125","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Master-Key","city":"Київ","address":"Федора Ернста вулиця, 14","phone":"+380935526758","website":"http://master-key.com.ua/","email":"vutik@ukr.net","category":"automotive_repair","overture_id":"019b63fb-f4f0-4f7d-9b5a-a5cf9edb8d57","latitude":"50.41703414916992","longitude":"30.464359283447266","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Old School Garage","city":"Київ","address":"Залізничне шосе, 4","phone":"+380971370999","website":"http://Osgmoto.com.ua/","email":"alexkotelevich@gmail.com","category":"automotive_repair","overture_id":"2dfd0281-8ac8-43b9-b0bb-fc76c9feb1de","latitude":"50.4066276550293","longitude":"30.530393600463867","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"ProSecurity","city":"Київ","address":"Столичне шосе, 91А","phone":"+380732370003","website":"http://prosecurity.com.ua/","email":"pro.s.ukraine@gmail.com","category":"automotive_services_and_repair","overture_id":"9b8f08b8-c754-42ed-a8dd-93fedfd5db93","latitude":"50.34498977661133","longitude":"30.551799774169922","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Radauto","city":"Київ","address":"Демьяна Коротченко улица, 17","phone":"+380982304040","website":"http://radauto.com.ua/","email":"radauto82@gmail.com","category":"automotive_repair","overture_id":"1194c60c-e9e4-42ab-ba4a-53aa2b645a98","latitude":"50.43315887451172","longitude":"30.33843231201172","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"АвтоМанія","city":"Київ","address":"Генерала Ватутіна провулок, 52","phone":"+380635185262","website":"http://avtomania.com.ua/","email":"avto-mania.com.ua@ukr.net","category":"automotive_repair","overture_id":"6db5447e-8e42-4776-a30b-de6b04c67fcc","latitude":"50.39583969116211","longitude":"30.42626953125","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Автомастерская AK Service","city":"Київ","address":"Будіндустрії вулиця, 7","phone":"+380672901090","website":"http://akservice.com.ua/","email":"kiev.akservice@gmail.com","category":"automotive_repair","overture_id":"6aac1227-2c4e-429f-8a21-bf63f76e9365","latitude":"50.401329040527344","longitude":"30.578786849975586","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Автосервис ДИАС","city":"Київ","address":"Кіровоградська вулиця, 76","phone":"+380504695759","website":"http://dias-auto.com.ua/","email":"dias.auto@ukr.net","category":"automotive_repair","overture_id":"dc3b74c2-f053-40ef-808a-ea69203c88a3","latitude":"50.4108772277832","longitude":"30.498722076416016","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Автосервіс «АвтоСтимул»","city":"Київ","address":"Белогородская улица, 162","phone":"+380678841331","website":"http://autostimul.com.ua/","email":"stoautostimul@gmail.com","category":"automotive_repair","overture_id":"bffbea70-4570-42aa-abab-8d0ab93b4333","latitude":"50.34376907348633","longitude":"30.280696868896484","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Автосервіс Кулібін-АВТО","city":"Київ","address":"Валентини Чайки вулиця, 2","phone":"+380507655555","website":"http://kulibin-auto.com.ua/","email":"kulibin.auto.group@gmail.com","category":"automotive_repair","overture_id":"17702f22-c3f9-4c51-a5d2-cec676bb8167","latitude":"50.4344367980957","longitude":"30.308916091918945","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Автотехнік","city":"Київ","address":"Івана Лепсе бульвар, 4","phone":"+380674028454","website":"http://autotechnik.com.ua/","email":"4303771@ukr.net","category":"automotive_repair","overture_id":"1195593b-f49d-4fa6-bc86-ede03b454096","latitude":"50.448387145996094","longitude":"30.42725372314453","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Мир Гармин","city":"Київ","address":"Костянтина Ушинського вулиця, 3","phone":"+380679888887","website":"http://mirgarmin.com.ua/","email":"mirgarmin@gmail.com","category":"automotive_repair","overture_id":"97941104-a593-4155-bd56-c424be0a8323","latitude":"50.43586349487305","longitude":"30.450756072998047","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Премиум сервис","city":"Київ","address":"Степана Бандеры проспект, 21","phone":"+380800300092","website":"http://premium-service.kiev.ua/","email":"premiumserviceua@gmail.com","category":"automotive_repair","overture_id":"fec82bb5-cce9-41c9-b0b7-0449d48e25e7","latitude":"50.4895133972168","longitude":"30.49330711364746","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"СТО \"Мотор\"  NissaN - Infiniti","city":"Київ","address":"Бережанська вулиця, 12Б","phone":"+380971644950","website":"http://motor-auto.com.ua/","email":"yura.lepihov@i.ua","category":"automotive_repair","overture_id":"89bdf2ef-f5d2-4175-9df4-3d282ab0f208","latitude":"50.512149810791016","longitude":"30.461139678955078","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"СТО Youcar Шиномонтаж Автосервіс","city":"Київ","address":"Хотівська вулиця, 3","phone":"+380638176555","website":"http://youcar.kiev.ua/","email":"stoyoucar@gmail.com","category":"automotive_repair","overture_id":"dd0cf057-a14d-4714-b84c-46dc49337e7e","latitude":"50.39903259277344","longitude":"30.500852584838867","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Сто Пантеон","city":"Київ","address":"Новокостянтинівська вулиця, 2А","phone":"+380975877616","website":"http://autoproservice.com.ua/","email":"drive_parts@ukr.net","category":"automotive_repair","overture_id":"9e02a7fb-2c14-4033-9252-691af6322767","latitude":"50.47883224487305","longitude":"30.493240356445312","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Тюнінг-ательє South.Art","city":"Київ","address":"Ізюмська вулиця, 5А","phone":"+380959023202","website":"http://southart.com.ua/","email":"southart.info@gmail.com","category":"automotive_services_and_repair","overture_id":"f5bbc55c-438c-45da-a2a0-58a159d51629","latitude":"50.41264343261719","longitude":"30.515867233276367","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Укргума","city":"Київ","address":"Кринична вулиця, 27","phone":"+380687777754","website":"http://ukrguma.com.ua/","email":"ukrguma.k@gmail.com","category":"tire_dealer_and_repair","overture_id":"b3864079-08f8-45f9-b288-630f2d0943d8","latitude":"50.399383544921875","longitude":"30.476459503173828","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Шиномонтаж All Tire","city":"Київ","address":"Сумська вулиця, 2","phone":"+380977587785","website":"http://alltire.com.ua/","email":"alltireua@gmail.com","category":"tire_dealer_and_repair","overture_id":"2cb5daae-3ef2-460f-90cd-be9b7e47eb1f","latitude":"50.39808654785156","longitude":"30.489404678344727","source_release":"2026-07-22.0","score":"3","priority":"MEDIUM","score_reasons":"+2: website використовує http:// | +1: email на загальнодоступному сервісі","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"4x4 Off-Road Center","city":"Київ","address":"Олекси Тихого вулиця, 68б","phone":"+380443647455","website":"http://www.auto.com.ua/","email":"info@off-road.com.ua","category":"automotive_repair","overture_id":"3a846212-911f-44ea-aa0a-f9403d17d509","latitude":"50.450469970703125","longitude":"30.438920974731445","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Bosh Avto Servis Dias Ukraine","city":"Київ","address":"Академіка Заболотного вулиця, 5","phone":"+380503665775","website":"http://dias-service.com.ua/","email":"sto@dias-service.com.ua","category":"automotive_repair","overture_id":"6cad680e-a2ba-42a5-9158-8d2f245c8613","latitude":"50.36644744873047","longitude":"30.46506690979004","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"BSS Motorsport","city":"Київ","address":"Степана Бандери проспект, 5","phone":"+380980091100","website":"http://bssmotorsport.com/","email":"info@bssmotorsport.com","category":"automotive_services_and_repair","overture_id":"691c9ba8-0f3a-4721-bb3b-90f12b85a05f","latitude":"50.48955154418945","longitude":"30.47041130065918","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Coyote-Service","city":"Київ","address":"Пирогівський Шлях вулиця, 96","phone":"+380444658050","website":"http://coyote-service.com.ua/","email":"","category":"automotive_repair","overture_id":"3e6b8d38-20c0-4014-ae69-a8eb7365a582","latitude":"50.35228729248047","longitude":"30.53756332397461","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Deutsche Garage","city":"Київ","address":"Романа Шухевича проспект, 4","phone":"+380632946363","website":"http://d-garage.com.ua/","email":"info@d-garage.com.ua","category":"automotive_repair","overture_id":"bab91f51-10fd-4480-89cf-a21409fc6d89","latitude":"50.49586868286133","longitude":"30.573720932006836","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"forcars pro","city":"Київ","address":"Ігоря Брановицького вулиця, 4","phone":"+380677722222","website":"http://forcars.pro/","email":"info@forcars.pro","category":"automotive_services_and_repair","overture_id":"d7e1b8f4-526d-4da8-af76-e65ae9c2197a","latitude":"50.420982360839844","longitude":"30.534353256225586","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Manic Mechanics","city":"Київ","address":"Лебединська вулиця, 10","phone":"+380983000199","website":"http://mm.kiev.ua/","email":"sto@mm.kiev.ua","category":"automotive_repair","overture_id":"24f20d71-d615-4fb2-ad0c-8c10632b4957","latitude":"50.52737808227539","longitude":"30.47888946533203","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Patriot Service","city":"Київ","address":"Оранжерейна вулиця, 1","phone":"+380632054888","website":"http://www.patriot-service.com/","email":"info@patriot-service.com","category":"automotive_repair","overture_id":"7c304232-001c-4e00-9a5a-246cfb4f23ac","latitude":"50.4651985168457","longitude":"30.44923210144043","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Авторесурс Киев","city":"Київ","address":"Озёрная улица, 1","phone":"+380443337941","website":"http://www.autoresurce.kiev.ua/","email":"inbox@auto-service.com.ua","category":"automotive_repair","overture_id":"376bf097-0cbf-43a1-90ee-736f7ccdd971","latitude":"50.52626419067383","longitude":"30.486236572265625","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Автоцентр Богдан-Авто Чернигов","city":"Чернігів","address":"Мира проспект, 241","phone":"+380732687853","website":"http://hyundai-cn.com.ua/","email":"","category":"automotive_repair","overture_id":"68d32898-e586-490b-873c-b8e1ab36d81b","latitude":"51.53345489501953","longitude":"31.267852783203125","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Автоцентр Осокорки","city":"Київ","address":"Центральна вулиця, 91","phone":"+380675556555","website":"http://www.avtocenter-osokorki.com.ua/","email":"","category":"automotive_repair","overture_id":"8d81021c-b700-4138-b4ee-b54061cdd2ab","latitude":"50.364192962646484","longitude":"30.606510162353516","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Альо шинА","city":"Київ","address":"Василя Кіквідзе вулиця, 45","phone":"+380442375333","website":"http://www.aleshina.com.ua/","email":"","category":"tire_dealer_and_repair","overture_id":"3cb9cca5-d585-4140-bb8d-f71df1ac615b","latitude":"50.40058898925781","longitude":"30.55477523803711","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"АТЛ - автосервис","city":"Київ","address":"Льва Симиренка вулиця, 36","phone":"+380674340538","website":"http://www.atl.ua","email":"","category":"automotive_repair","overture_id":"c7de9cec-7aff-4b19-af9d-d3b701673feb","latitude":"50.40677261352539","longitude":"30.405359268188477","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Газ","city":"Київ","address":"Апрельский переулок, 1","phone":"+380800218048","website":"http://www.motor-gas.ua/","email":"info@motor-gas.ua","category":"automotive_repair","overture_id":"9093cc03-eece-4d71-ba5a-745cad4ce71b","latitude":"50.49739456176758","longitude":"30.42913818359375","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Данон Україна","city":"Київ","address":"Степана Бандери проспект, 28А","phone":"+380445948000","website":"http://www.danone.ua/","email":"reception.ukraine@danone.com","category":"tire_dealer_and_repair","overture_id":"c104c52b-5866-4bcc-a3c5-0a1f11cdd377","latitude":"50.48516845703125","longitude":"30.53144645690918","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Компания \"Фанавто\"","city":"Київ","address":"проспект Повітряних Сил , 86А","phone":"+380676939377","website":"http://auto.fanauto.com.ua/index.html","email":"info@fanauto.com.ua","category":"automotive_repair","overture_id":"ee3eceb8-5351-4383-972b-c51fbd2215a6","latitude":"50.413978576660156","longitude":"30.438350677490234","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Мактранс","city":"Київ","address":"Залізничне шосе, 4","phone":"+380675272236","website":"http://akpp.com.ua/","email":"maktrans@akpp.ua","category":"automotive_repair","overture_id":"9e6a225e-767b-41e7-a380-994e9aaed185","latitude":"50.406776428222656","longitude":"30.53038215637207","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"Ралли Сервис Центр","city":"Київ","address":"Магнітогорська вулиця, 1","phone":"+380672424833","website":"http://www.sto-rsc.com.ua/","email":"info@sto-rsc.com.ua","category":"automotive_repair","overture_id":"c9db96c6-b0d1-41ab-a4b9-da4eb70fc2a2","latitude":"50.45388412475586","longitude":"30.639516830444336","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"СТО \"Омега\"","city":"Київ","address":"Медова вулиця, 5А","phone":"+380445932710","website":"http://www.omega-avto.net/","email":"","category":"automotive_repair","overture_id":"ca0f09bf-f9b8-4b30-ac52-e10c3bc7b284","latitude":"50.40913391113281","longitude":"30.451976776123047","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"СТО АвтоЦех","city":"Київ","address":"Будіндустрії вулиця, 5","phone":"+380443334040","website":"http://www.auto-tseh.com.ua/","email":"t.ivanov@auto-tseh.com.ua","category":"automotive_repair","overture_id":"e848f48a-744b-4e11-9b0e-6a18de38eef1","latitude":"50.406402587890625","longitude":"30.56937026977539","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"СТО Спартанців","city":"Київ","address":"В'ячеслава Чорновола вулиця, 41","phone":"+380961877877","website":"http://spartans.com.ua/","email":"","category":"automotive_repair","overture_id":"883c8e72-7cc9-4dbc-9e6c-6814ff488557","latitude":"50.45003128051758","longitude":"30.483421325683594","source_release":"2026-07-22.0","score":"2","priority":"MEDIUM","score_reasons":"+2: website використовує http://","lead_type":"HTTP_WEBSITE","recommended_offer":"Оновлення сайту та HTTPS"},{"name":"707 Шиномонтаж","city":"Київ","address":"Каунаська вулиця, 13","phone":"+380969451515","website":"https://707service.com/","email":"pavlo.lisnyi@gmail.com","category":"automotive_services_and_repair","overture_id":"93bddddb-8595-41f4-8408-7fae30edd093","latitude":"50.43075942993164","longitude":"30.628164291381836","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Car Service","city":"Київ","address":"Kyivska St, 44, c","phone":"+380680008365","website":"https://www.car-service.in.ua/","email":"autocentr-k@ukr.net","category":"automotive_repair","overture_id":"2f425234-1934-4767-a888-dcef5ccbd8e7","latitude":"50.37119674682617","longitude":"30.322978973388672","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Grande Auto Service","city":"Київ","address":"Науки проспект, 159","phone":"+380732506050","website":"https://grande-auto-service.kyiv.ua/","email":"g.a.s.grandautoservice@gmail.com","category":"automotive_repair","overture_id":"1f2ab87e-438b-4c5b-86c8-2efea1d7cb7f","latitude":"50.37230682373047","longitude":"30.546531677246094","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"SMART UA - Сервіс та Запчастини для Smart","city":"Київ","address":"Узинська вулиця, 1","phone":"+380503849319","website":"https://smart-ua.com.ua/","email":"smart.ua.customers@gmail.com","category":"automotive_repair","overture_id":"aabc2227-feab-4cd1-ad7d-4fd62eff13ea","latitude":"50.438819885253906","longitude":"30.393739700317383","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"STO SPcenter Avtoservis Povnoho Tsyklu","city":"Київ","address":"Академіка Білецького вулиця, 34","phone":"+380963647726","website":"https://spcenter.com.ua/","email":"yevheniy_gnb@ukr.net","category":"automotive_repair","overture_id":"04927ff6-9a1e-4955-899f-adc7b57b2c99","latitude":"50.429237365722656","longitude":"30.409509658813477","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Street Motors Garage","city":"Київ","address":"Академика Глушкова проспект, 9А","phone":"+380662092997","website":"https://street-motors-garage.cb24.eu/","email":"stmotorsgarage@gmail.com","category":"automotive_services_and_repair","overture_id":"37cb6952-40e2-4eaa-bedc-0cdb18bc7a35","latitude":"50.37194061279297","longitude":"30.46811294555664","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"V8 GM Garage","city":"Київ","address":"Пирогівський Шлях вулиця, 28А","phone":"+380674632424","website":"https://gm-v8.com/","email":"eighthcilinders@gmail.com","category":"automotive_repair","overture_id":"fcc3aac6-b9f5-4d4b-a5f2-cbea7e28e72d","latitude":"50.3845329284668","longitude":"30.548830032348633","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Автозапчастини Solavto","city":"Київ","address":"Полярна вулиця, 2","phone":"+380677704110","website":"https://solavto.com/","email":"solavto1999@gmail.com","category":"automotive_repair","overture_id":"d2faefc9-f310-41ee-a4a9-ad86c37c6c4f","latitude":"50.518550872802734","longitude":"30.469024658203125","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Автосервіс “Motor” - СТО Чернігів","city":"Чернігів","address":"Мира проспект, 193А","phone":"+380938400084","website":"https://stomotor.com.ua/uk/","email":"0938400084sto@gmail.com","category":"automotive_repair","overture_id":"5ba7862b-e60d-426e-a726-1a3d9e36e1de","latitude":"51.52055740356445","longitude":"31.27301025390625","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Автоскло Алмаз","city":"Київ","address":"Пухівська вулиця, 2","phone":"+380672466410","website":"https://autosklo.in.ua/","email":"autoshibka@gmail.com","category":"auto_glass_service","overture_id":"e77de2ba-bf6c-42dc-b9a1-b6143d466539","latitude":"50.50770950317383","longitude":"30.630329132080078","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Мастер-Шина","city":"Київ","address":"Набережно-Корчуватська вулиця, 54","phone":"+380677213610","website":"https://master-shina.com.ua/","email":"mastershina@ukr.net","category":"tire_dealer_and_repair","overture_id":"5af85001-5fb8-49bf-a9c1-bc3cc102c93c","latitude":"50.372100830078125","longitude":"30.551063537597656","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"СТО Iron Master","city":"Київ","address":"Науки проспект, 51","phone":"+380935196969","website":"https://iron-master.com.ua/","email":"ironmaster.ua@gmail.com","category":"automotive_repair","overture_id":"0d086484-c549-4b21-b751-1ffe18b0745d","latitude":"50.381465911865234","longitude":"30.535926818847656","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"СТО Автосервис +","city":"Київ","address":"Пухівська вулиця, 2","phone":"+380995314499","website":"https://carservise.com.ua/","email":"vladimirmelnik290874@gmail.com","category":"automotive_repair","overture_id":"f6fc7ebc-c6ab-4283-bed4-7c92c941debb","latitude":"50.50770950317383","longitude":"30.630329132080078","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"СТО Катрин / Автосервис Киев","city":"Київ","address":"Червоноткацька вулиця, 42Е","phone":"+380632333236","website":"https://katrin-auto.kiev.ua/","email":"ctokatrrin@gmail.com","category":"automotive_repair","overture_id":"c0df7701-cb8f-4597-a5c0-dc06a2c5fa97","latitude":"50.45633316040039","longitude":"30.63751983642578","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Тахосервіс","city":"Київ","address":"Малинская, 1","phone":"+380503884880","website":"https://tahoservice.ua/","email":"tahokiev@gmail.com","category":"automotive_repair","overture_id":"0e110a3b-f20e-4fab-94af-816d0a9d8813","latitude":"50.47808837890625","longitude":"30.369285583496094","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Хаммер-центр","city":"Київ","address":"Набережно-Лугова вулиця, 12","phone":"+380964974226","website":"https://www.hammer-center.com.ua/","email":"hammercentr@gmail.com","category":"automotive_repair","overture_id":"8303778b-4b1c-4c35-beb2-acd145ca5a42","latitude":"50.47676086425781","longitude":"30.50489616394043","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Шинний центр TYRE PLUS компанії \"Інтерциклон\"","city":"Київ","address":"Здолбунівська вулиця, 7А","phone":"+380442280080","website":"https://tyres-intc.com.ua/","email":"interciklone@gmail.com","category":"tire_dealer_and_repair","overture_id":"c203a81e-b2fa-480a-993c-a6c47af8e67d","latitude":"50.414649963378906","longitude":"30.617626190185547","source_release":"2026-07-22.0","score":"1","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"ADS Autodom Service","city":"Київ","address":"Електриків вулиця, 10","phone":"+380956617272","website":"https://autodom.kiev.ua/","email":"info@autodom.kiev.ua","category":"automotive_repair","overture_id":"90f60164-f847-4413-bf61-412306a4773e","latitude":"50.48236083984375","longitude":"30.499568939208984","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"AMScars","city":"Київ","address":"Радосинская улица, 56","phone":"+380970020404","website":"https://auto-mechanic.in.ua/","email":"","category":"automotive_repair","overture_id":"e810a83b-e864-4acd-bf39-c157d07e8add","latitude":"50.520606994628906","longitude":"30.585857391357422","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Avtoservis Oiler Luk'yanovka","city":"Київ","address":"Нагірна вулиця, 47","phone":"+380443387512","website":"","email":"","category":"automotive_repair","overture_id":"d7337abc-c1a4-4a27-94a5-fab99ca75bb7","latitude":"50.47182846069336","longitude":"30.485837936401367","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"+5: немає website | -5: ознака великого бізнесу (Oiler)","lead_type":"NO_WEBSITE","recommended_offer":"Новий сайт із онлайн-записом"},{"name":"CTO Sofi Automotive","city":"Київ","address":"Червоний Орач вулиця, 36а","phone":"+380738889498","website":"https://sofiautomotive.com.ua/","email":"office@sofiautomotive.com.ua","category":"automotive_repair","overture_id":"e4875da7-abef-4f69-bfd0-23aee7087117","latitude":"50.37897491455078","longitude":"30.318370819091797","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"JCAR Автосервіс","city":"Київ","address":"вул. Кирила Розумовського 71","phone":"+380960181997","website":"https://jcar.com.ua/","email":"","category":"auto_glass_service","overture_id":"3e8d63ab-3462-4935-81db-81334364592a","latitude":"50.466712951660156","longitude":"30.381126403808594","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"MeliorAVTO","city":"Київ","address":"Миколи Закревського вулиця, 53","phone":"+380970950513","website":"https://www.melioravto.com.ua/","email":"info@melioravto.com.ua","category":"tire_dealer_and_repair","overture_id":"08a9a516-dc51-4a0c-abc4-e7ea66fa9eff","latitude":"50.51306915283203","longitude":"30.625646591186523","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Towncars Автосервіс","city":"Київ","address":"Охтирська вулиця, 8","phone":"+380963466300","website":"https://www.towncars.com.ua/","email":"service@towncars.com.ua","category":"automotive_repair","overture_id":"0cef8fda-ce41-45ad-8e14-54e0e36773fb","latitude":"50.39765930175781","longitude":"30.478246688842773","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Ukrainian Transmission Centre","city":"Київ","address":"Новокостянтинівська вулиця, 4б","phone":"+380675052468","website":"https://utcakpp.com.ua/","email":"","category":"automotive_repair","overture_id":"9d5e3d44-0902-4467-8243-6f2c7b6562ca","latitude":"50.480621337890625","longitude":"30.49210548400879","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Автосервис Прайм Моторс Украина","city":"Київ","address":"Острівна вулиця, 12","phone":"+380987632343","website":"https://www.vagmotors.com.ua/","email":"admin@primemotors.com.ua","category":"automotive_repair","overture_id":"fd89c34a-8d39-4d96-9935-78a2e699f538","latitude":"50.359920501708984","longitude":"30.553585052490234","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Автосервіс Рись Троєщина","city":"Київ","address":"Милославська вулиця, 1","phone":"+380770152284","website":"https://sto-car.com.ua/","email":"info@sto-car.com.ua","category":"automotive_repair","overture_id":"f0a944dc-9992-4078-9061-88fecb3d09bd","latitude":"50.51803207397461","longitude":"30.60640525817871","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Дар-Авто","city":"Київ","address":"Павла Усенка вулиця, 8","phone":"+380445918585","website":"https://darauto.kiev.ua/","email":"","category":"automotive_repair","overture_id":"1a99babd-7821-47d6-858a-f617b8c76897","latitude":"50.44501495361328","longitude":"30.63555335998535","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"РобимГуд","city":"Київ","address":"Білоруська вулиця, 10/18","phone":"+380443839747","website":"www.robimgood.com.ua","email":"asc@robimgood.com.ua","category":"automotive_repair","overture_id":"8f18863b-aa92-4ff5-bde8-c724ac3d13c0","latitude":"50.46245574951172","longitude":"30.480226516723633","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"UNKNOWN","recommended_offer":"Потрібна ручна перевірка"},{"name":"Сити Франс Сервис","city":"Київ","address":"Азербайджанська вулиця, 25","phone":"+380677707960","website":"https://cityfranceservice.com.ua/","email":"info@cityfranceservice.com.ua","category":"automotive_repair","overture_id":"fea3b14b-ee6b-4c73-8eef-e6547a35755c","latitude":"50.44228744506836","longitude":"30.648466110229492","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"СТО Padre","city":"Київ","address":"Тепловозна вулиця, 20","phone":"+380970230300","website":"https://www.avtopadre.com.ua/","email":"info@avtopadre.com.ua","category":"automotive_repair","overture_id":"fe410f80-e289-4a2f-8016-481404df9d35","latitude":"50.42078399658203","longitude":"30.620197296142578","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"СТО Автосервіс Куратор","city":"Київ","address":"Автопаркова вулиця, 7А","phone":"+380506007711","website":"https://kurator.in.ua/","email":"info@kurator.in.ua","category":"automotive_repair","overture_id":"de98c175-f306-4645-83bb-d176365aa924","latitude":"50.3965950012207","longitude":"30.684965133666992","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"СТО Шиномонтаж Авто-Регіон","city":"Київ","address":"Brovarska St, 2А","phone":"+380632333603","website":"https://autoregion.com.ua/","email":"marketing@autoregion.com.ua","category":"automotive_repair","overture_id":"9c15ff3d-a9fb-4af3-ad3b-d3e5fcf3e8d6","latitude":"50.390201568603516","longitude":"30.797136306762695","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Сток Шина","city":"Київ","address":"Новомостицька вулиця, 25А","phone":"+380960434444","website":"https://alfashina.ua/","email":"sales@alfashina.ua","category":"tire_dealer_and_repair","overture_id":"d6e7cbf6-2321-4ce8-930c-afc321deb712","latitude":"50.49897003173828","longitude":"30.433948516845703","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Тойота Центр Київ \"ВіДі Автострада\"","city":"Київ","address":"с. Софіївська Борщагівка вул. Велика Кільцева, 56","phone":"","website":"https://toyota-ua.com/","email":"sales.avtostrada@vidi.ua","category":"automotive_repair","overture_id":"32515249-ca7b-4c52-8386-46c20e229de0","latitude":"50.4134407043457","longitude":"30.380760192871094","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Центр шумоізоляції Car-Silence","city":"Київ","address":"Мрії Марії, Лаврська вулиця, 19","phone":"+380631415301","website":"https://car-silence.com.ua/","email":"support@car-silence.com.ua","category":"automotive_services_and_repair","overture_id":"41b238c3-698e-4d77-8158-528c93e48d2b","latitude":"50.4873046875","longitude":"30.392261505126953","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Шинний центр Goodyear","city":"Київ","address":"Садова вулиця, 70","phone":"+380952295225","website":"https://t.me/goroshinashina","email":"goroshinashina@gmail.com","category":"tire_dealer_and_repair","overture_id":"6af5291c-9521-4ec5-a8b6-ce8517cef4d7","latitude":"50.39250564575195","longitude":"30.42919158935547","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"+4: website веде на соцмережу або Google Maps | +1: email на загальнодоступному сервісі | -5: ознака великого бізнесу (Goodyear)","lead_type":"SOCIAL_ONLY","recommended_offer":"Сайт із SEO та формою запису"},{"name":"Шинний Центр Radius","city":"Київ","address":"Антоновича улица, 160","phone":"+380674098917","website":"https://radius.ua/","email":"info@radius.ua","category":"automotive_repair","overture_id":"8117901b-eabc-472b-baf5-c457e100e99f","latitude":"50.416744232177734","longitude":"30.51926612854004","source_release":"2026-07-22.0","score":"0","priority":"LOW","score_reasons":"Немає факторів","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Автосервіс Bosch Service “Бровакар”","city":"Київ","address":"Металургів вулиця, 23","phone":"+380671830533","website":"https://send.monobank.ua/jar/6Kri33vQq6","email":"brovacar@ukr.net","category":"automotive_repair","overture_id":"1d688deb-149c-47db-8345-479cc5df1d0f","latitude":"50.52450942993164","longitude":"30.80307960510254","source_release":"2026-07-22.0","score":"-4","priority":"LOW","score_reasons":"+1: email на загальнодоступному сервісі | -5: ознака великого бізнесу (Bosch)","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Mazda Автоінтернешнл Метрополіс","city":"Київ","address":"Ivana Dziuby St, 3/5","phone":"+380675369191","website":"https://autometropolis.com.ua/","email":"sto@autometropolis.com.ua","category":"automotive_repair","overture_id":"df351b47-55a1-435c-8751-de909a01e840","latitude":"50.4272346496582","longitude":"30.3988037109375","source_release":"2026-07-22.0","score":"-5","priority":"LOW","score_reasons":"-5: ознака великого бізнесу (Mazda)","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"VIDI","city":"Київ","address":"Кільцева дорога, 56","phone":"+380800308999","website":"https://vidi.ua/","email":"","category":"automotive_repair","overture_id":"f1ef2781-15ea-4872-93a3-f5f4af8392da","latitude":"50.41221618652344","longitude":"30.38302993774414","source_release":"2026-07-22.0","score":"-5","priority":"LOW","score_reasons":"-5: ознака великого бізнесу (VIDI)","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"},{"name":"Автосервіс Oiler","city":"Київ","address":"Валерія Лобановського проспект, 119Х","phone":"+380443387513","website":"https://oiler.ua/","email":"","category":"automotive_repair","overture_id":"cc4cc433-d237-47c9-a464-1ad63e80f562","latitude":"50.408782958984375","longitude":"30.513803482055664","source_release":"2026-07-22.0","score":"-5","priority":"LOW","score_reasons":"-5: ознака великого бізнесу (Oiler)","lead_type":"MODERN_WEBSITE","recommended_offer":"Автоматизація запису або AI"}]}</script>
+  <script>
+    "use strict";
+
+    const dataset = JSON.parse(document.getElementById("lead-data").textContent);
+    const columns = dataset.columns;
+    const leadTypes = dataset.leadTypes;
+    const rows = dataset.rows.map((row, index) => ({ ...row, __index: index }));
+    const priorityRank = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+    const labels = {
+      name: "Компанія",
+      city: "Місто",
+      address: "Адреса",
+      phone: "Телефон",
+      website: "Website",
+      email: "Email",
+      category: "Категорія",
+      overture_id: "Overture ID",
+      latitude: "Широта",
+      longitude: "Довгота",
+      source_release: "Реліз",
+      score: "Score",
+      priority: "Priority",
+      score_reasons: "Причини оцінки",
+      lead_type: "Тип ліда",
+      recommended_offer: "Рекомендована пропозиція"
+    };
+
+    const state = {
+      query: "",
+      priority: "ALL",
+      leadType: "ALL",
+      sortColumn: "priority",
+      sortDirection: "asc"
+    };
+
+    const body = document.getElementById("tableBody");
+    const emptyState = document.getElementById("emptyState");
+    const visibleCount = document.getElementById("visibleCount");
+    const search = document.getElementById("search");
+    const filterButtons = [...document.querySelectorAll(".filter")];
+    const leadTypeFilter = document.getElementById("leadTypeFilter");
+
+    function countPriority(priority) {
+      return rows.filter(row => (row.priority || "").toUpperCase() === priority).length;
+    }
+
+    document.getElementById("countAll").textContent = rows.length;
+    document.getElementById("countHigh").textContent = countPriority("HIGH");
+    document.getElementById("countMedium").textContent = countPriority("MEDIUM");
+    document.getElementById("countLow").textContent = countPriority("LOW");
+
+    const leadTypeStats = document.getElementById("leadTypeStats");
+    for (const leadType of leadTypes) {
+      const count = rows.filter(row => row.lead_type === leadType).length;
+
+      const card = document.createElement("article");
+      card.className = "type-stat";
+      const label = document.createElement("span");
+      label.className = "type-stat-label";
+      label.textContent = leadType;
+      const value = document.createElement("strong");
+      value.className = "type-stat-value";
+      value.textContent = String(count);
+      card.append(label, value);
+      leadTypeStats.appendChild(card);
+
+      const option = document.createElement("option");
+      option.value = leadType;
+      option.textContent = `${leadType} (${count})`;
+      leadTypeFilter.appendChild(option);
+    }
+
+    function splitValues(value) {
+      return String(value || "").split(/[,;\n]+/).map(item => item.trim()).filter(Boolean);
+    }
+
+    function truncate(value, maxLength = 34) {
+      if (value.length <= maxLength) return value;
+      return value.slice(0, maxLength - 1) + "…";
+    }
+
+    function safeExternalUrl(value) {
+      const text = String(value || "").trim();
+      if (/^https?:\/\//i.test(text)) return text;
+      return "https://" + text;
+    }
+
+    function makeLink(href, text, title) {
+      const link = document.createElement("a");
+      link.href = href;
+      link.textContent = text;
+      link.title = title;
+      return link;
+    }
+
+    function renderContactLinks(cell, value, type) {
+      const values = splitValues(value);
+      if (!values.length) {
+        cell.textContent = "—";
+        cell.classList.add("muted");
+        return;
+      }
+
+      const list = document.createElement("div");
+      list.className = "link-list";
+      for (const item of values) {
+        if (type === "website") {
+          list.appendChild(makeLink(safeExternalUrl(item), truncate(item), item));
+        } else if (type === "email") {
+          list.appendChild(makeLink("mailto:" + item, item, item));
+        } else {
+          list.appendChild(makeLink("tel:" + item.replace(/\s+/g, ""), item, item));
+        }
+      }
+      cell.appendChild(list);
+    }
+
+    function makeCell(column, value) {
+      const cell = document.createElement("td");
+      const text = String(value ?? "");
+
+      if (column === "website" || column === "email" || column === "phone") {
+        renderContactLinks(cell, text, column);
+      } else if (column === "priority") {
+        const priority = text.toUpperCase() || "LOW";
+        const badge = document.createElement("span");
+        badge.className = "badge badge-" + priority.toLowerCase();
+        badge.textContent = priority;
+        cell.appendChild(badge);
+      } else if (column === "score") {
+        const score = Number(text || 0);
+        const level = score >= 5 ? "high" : score >= 2 ? "medium" : "low";
+        const badge = document.createElement("span");
+        badge.className = "score score-" + level;
+        badge.textContent = String(score);
+        cell.appendChild(badge);
+      } else if (column === "lead_type") {
+        const badge = document.createElement("span");
+        badge.className = "type-badge";
+        badge.textContent = text || "UNKNOWN";
+        cell.appendChild(badge);
+      } else {
+        cell.textContent = text || "—";
+        if (!text) cell.classList.add("muted");
+      }
+
+      if (column === "name") cell.classList.add("company");
+      if (["address", "category", "score_reasons", "recommended_offer"].includes(column)) {
+        cell.classList.add("wrap");
+      }
+      if (["latitude", "longitude", "source_release"].includes(column)) cell.classList.add("nowrap");
+      return cell;
+    }
+
+    function normalizedValue(row, column) {
+      const value = row[column] ?? "";
+      if (column === "priority") return priorityRank[String(value).toUpperCase()] ?? 99;
+      if (["score", "latitude", "longitude"].includes(column)) {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : Number.NEGATIVE_INFINITY;
+      }
+      return String(value).toLocaleLowerCase("uk");
+    }
+
+    function compareRows(a, b) {
+      const left = normalizedValue(a, state.sortColumn);
+      const right = normalizedValue(b, state.sortColumn);
+      let result;
+      if (typeof left === "number" && typeof right === "number") {
+        result = left - right;
+      } else {
+        result = String(left).localeCompare(String(right), "uk", { numeric: true });
+      }
+      if (result === 0) result = a.__index - b.__index;
+      return state.sortDirection === "asc" ? result : -result;
+    }
+
+    function filteredRows() {
+      const query = state.query.toLocaleLowerCase("uk");
+      return rows
+        .filter(row => state.priority === "ALL" || String(row.priority).toUpperCase() === state.priority)
+        .filter(row => state.leadType === "ALL" || row.lead_type === state.leadType)
+        .filter(row => !query || columns.some(column =>
+          String(row[column] ?? "").toLocaleLowerCase("uk").includes(query)
+        ))
+        .sort(compareRows);
+    }
+
+    function renderHeader() {
+      const header = document.getElementById("headerRow");
+      header.replaceChildren();
+      for (const column of columns) {
+        const th = document.createElement("th");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "sort-button";
+        button.dataset.column = column;
+
+        const title = document.createElement("span");
+        title.textContent = labels[column] || column.replaceAll("_", " ");
+        button.appendChild(title);
+
+        if (state.sortColumn === column) {
+          const mark = document.createElement("span");
+          mark.className = "sort-mark";
+          mark.textContent = state.sortDirection === "asc" ? "▲" : "▼";
+          button.appendChild(mark);
+        }
+
+        button.addEventListener("click", () => {
+          if (state.sortColumn === column) {
+            state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
+          } else {
+            state.sortColumn = column;
+            state.sortDirection = column === "score" ? "desc" : "asc";
+          }
+          render();
+        });
+        th.appendChild(button);
+        header.appendChild(th);
+      }
+    }
+
+    function render() {
+      const visible = filteredRows();
+      renderHeader();
+      body.replaceChildren();
+
+      for (const row of visible) {
+        const tr = document.createElement("tr");
+        for (const column of columns) tr.appendChild(makeCell(column, row[column]));
+        body.appendChild(tr);
+      }
+
+      visibleCount.textContent = `Показано: ${visible.length} із ${rows.length}`;
+      emptyState.hidden = visible.length !== 0;
+      document.querySelector("table").hidden = visible.length === 0;
+    }
+
+    function setPriority(priority) {
+      state.priority = priority;
+      for (const button of filterButtons) {
+        button.classList.toggle("active", button.dataset.priority === priority);
+      }
+      render();
+    }
+
+    search.addEventListener("input", event => {
+      state.query = event.target.value.trim();
+      render();
+    });
+
+    for (const button of filterButtons) {
+      button.addEventListener("click", () => setPriority(button.dataset.priority));
+    }
+
+    leadTypeFilter.addEventListener("change", event => {
+      state.leadType = event.target.value;
+      render();
+    });
+
+    document.getElementById("highOnly").addEventListener("click", () => setPriority("HIGH"));
+
+    function csvEscape(value) {
+      const text = String(value ?? "");
+      return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+    }
+
+    document.getElementById("exportCsv").addEventListener("click", () => {
+      const visible = filteredRows();
+      const lines = [
+        columns.map(csvEscape).join(","),
+        ...visible.map(row => columns.map(column => csvEscape(row[column])).join(","))
+      ];
+      const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "filtered_leads.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    render();
+  </script>
+</body>
+</html>
