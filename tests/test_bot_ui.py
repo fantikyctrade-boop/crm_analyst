@@ -13,6 +13,7 @@ from handlers.search import (
     cities_keyboard,
     confirm_keyboard,
     main_keyboard,
+    new_search_keyboard,
     results_keyboard,
 )
 from services.lead_pipeline import SearchResult
@@ -24,6 +25,10 @@ class BotUiTest(unittest.TestCase):
         self.assertEqual(str(aiogram.__version__), "3.30.0")
         self.assertEqual(main_keyboard().keyboard[0][0].text, "Новий пошук")
         self.assertEqual(cities_keyboard().keyboard[0][0].text, "Вся Україна")
+        self.assertEqual(
+            new_search_keyboard().inline_keyboard[0][0].callback_data,
+            "search:new",
+        )
         self.assertEqual(
             confirm_keyboard().inline_keyboard[0][0].callback_data,
             "search:run",
@@ -64,6 +69,9 @@ class BotUiTest(unittest.TestCase):
                         "score_reasons": "+5: test reason",
                         "lead_type": "MODERN_WEBSITE",
                         "recommended_offer": "Автоматизація запису або AI",
+                        "instagram_username": "test.service",
+                        "instagram_status": "found",
+                        "instagram_followers": "4811",
                     },
                 ),
                 csv_path=Path(directory) / "scored_leads.csv",
@@ -79,6 +87,9 @@ class BotUiTest(unittest.TestCase):
             self.assertIn("test reason", page.text)
             self.assertIn("MODERN_WEBSITE", page.text)
             self.assertIn("Автоматизація запису або AI", page.text)
+            self.assertIn("Instagram:", page.text)
+            self.assertIn("@test.service", page.text)
+            self.assertIn("Підписники: 4 811", page.text)
 
             keyboard = results_keyboard(
                 result,
@@ -106,6 +117,12 @@ class BotUiTest(unittest.TestCase):
                 lead_type="NO_WEBSITE",
             )
             self.assertNotIn("Test Service", filtered.text)
+
+            result.rows[0]["instagram_status"] = "unavailable"
+            result.rows[0].pop("instagram_followers")
+            unavailable = make_page(result, page=0, high_only=False)
+            self.assertIn("Instagram:", unavailable.text)
+            self.assertNotIn("Підписники:", unavailable.text)
 
 
 if __name__ == "__main__":

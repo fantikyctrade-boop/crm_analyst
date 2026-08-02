@@ -7,6 +7,7 @@ import math
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
+from .instagram_enrichment import InstagramStatus
 from .lead_pipeline import SearchResult
 
 PAGE_SIZE = 10
@@ -64,11 +65,31 @@ def _company_text(row: dict[str, str], number: int) -> str:
     if safe_website:
         website = f'<a href="{html.escape(safe_website, quote=True)}">{website}</a>'
 
+    instagram = ""
+    instagram_username = _clean(row.get("instagram_username"))
+    if instagram_username:
+        escaped_username = html.escape(instagram_username)
+        profile_url = f"https://www.instagram.com/{instagram_username}/"
+        instagram = (
+            f'Instagram: <a href="{html.escape(profile_url, quote=True)}">'
+            f"@{escaped_username}</a>"
+        )
+        if row.get("instagram_status") == InstagramStatus.FOUND.value:
+            followers_value = _clean(row.get("instagram_followers"))
+            try:
+                followers_count = int(followers_value)
+            except ValueError:
+                followers_count = None
+            if followers_count is not None and followers_count >= 0:
+                formatted_followers = f"{followers_count:,}".replace(",", " ")
+                instagram += f"\nПідписники: {formatted_followers}"
+
     return (
         f"<b>{number}. {name}</b>\n"
         f"Місто: {city}\n"
         f"Телефон: {phone}\n"
         f"Сайт: {website}\n"
+        f"{instagram + chr(10) if instagram else ''}"
         f"Email: {email}\n"
         f"Score: <b>{score}</b>\n"
         f"Тип ліда: <code>{lead_type}</code>\n"
