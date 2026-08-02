@@ -13,6 +13,7 @@ import re
 import sys
 import time
 import unicodedata
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
@@ -202,6 +203,331 @@ NICHE_ALIASES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "бар": (("bar",), ()),
 }
 
+ADDITIONAL_NICHE_GROUPS: tuple[
+    tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]], ...
+] = (
+    (
+        ("private_tutor", "tutoring_center"),
+        (),
+        (
+            "репетитор",
+            "репетитори",
+            "репетиторів",
+            "приватний репетитор",
+            "приватні репетитори",
+            "приватний викладач",
+            "приватна викладачка",
+            "репетиторський центр",
+            "центр репетиторів",
+            "частный репетитор",
+            "частные репетиторы",
+            "центр репетиторов",
+            "tutor",
+            "tutors",
+            "private tutor",
+            "tutoring center",
+        ),
+    ),
+    (
+        ("dance_school",),
+        (),
+        (
+            "школа танців",
+            "школи танців",
+            "танцювальна школа",
+            "танцювальні школи",
+            "студія танців",
+            "студії танців",
+            "танцювальна студія",
+            "танцювальні студії",
+            "школа танцев",
+            "танцевальная школа",
+            "студия танцев",
+            "танцевальная студия",
+            "dance school",
+            "dance schools",
+            "dance studio",
+            "dance studios",
+        ),
+    ),
+    (
+        ("language_school",),
+        (),
+        (
+            "мовна школа",
+            "мовні школи",
+            "школа англійської",
+            "школи англійської",
+            "курси англійської",
+            "курс англійської",
+            "школа іноземних мов",
+            "школи іноземних мов",
+            "курси іноземних мов",
+            "языковая школа",
+            "языковые школы",
+            "школа английского",
+            "курсы английского",
+            "школа иностранных языков",
+            "курсы иностранных языков",
+            "language school",
+            "language schools",
+            "foreign language school",
+            "english school",
+            "english courses",
+        ),
+    ),
+    (
+        ("photographer",),
+        (),
+        (
+            "фотограф",
+            "фотографи",
+            "фотографів",
+            "фотостудія",
+            "фотостудії",
+            "весільний фотограф",
+            "весільні фотографи",
+            "фотограф на весілля",
+            "послуги фотографа",
+            "свадебный фотограф",
+            "свадебные фотографы",
+            "фотограф на свадьбу",
+            "услуги фотографа",
+            "фотостудия",
+            "photographer",
+            "photographers",
+            "photography studio",
+            "photo studio",
+            "wedding photographer",
+        ),
+    ),
+    (
+        ("wedding_planning",),
+        (),
+        (
+            "весільний організатор",
+            "весільні організатори",
+            "організатор весіль",
+            "організатори весіль",
+            "весільна агенція",
+            "весільне агентство",
+            "свадебный организатор",
+            "организатор свадеб",
+            "свадебное агентство",
+            "wedding planner",
+            "wedding planners",
+            "wedding planning",
+        ),
+    ),
+    (
+        ("party_and_event_planning",),
+        (),
+        (
+            "івент агенція",
+            "івент-агенція",
+            "івент агентство",
+            "івент-агентство",
+            "агенція подій",
+            "організатор подій",
+            "ивент агентство",
+            "ивент-агентство",
+            "организатор мероприятий",
+            "event agency",
+            "event planner",
+            "event planning",
+        ),
+    ),
+    (
+        ("interior_design",),
+        (),
+        (
+            "дизайнер інтер'єру",
+            "дизайнери інтер'єру",
+            "дизайнер інтер’єру",
+            "дизайн інтер'єру",
+            "дизайн інтер’єру",
+            "студія дизайну",
+            "студії дизайну",
+            "студія дизайну інтер'єру",
+            "архітектор інтер'єру",
+            "архітектори інтер'єру",
+            "дизайнер интерьера",
+            "дизайн интерьера",
+            "студия дизайна",
+            "архитектор интерьера",
+            "interior designer",
+            "interior designers",
+            "interior design",
+            "interior design studio",
+        ),
+    ),
+    (
+        ("real_estate_agent",),
+        (),
+        (
+            "ріелтор",
+            "рієлтор",
+            "ріелтори",
+            "рієлтори",
+            "ріелторів",
+            "рієлторів",
+            "приватний ріелтор",
+            "приватний рієлтор",
+            "ріелтор приватна практика",
+            "рієлтор приватна практика",
+            "агент з нерухомості",
+            "агенти з нерухомості",
+            "брокер з нерухомості",
+            "брокери з нерухомості",
+            "риелтор",
+            "риэлтор",
+            "частный риелтор",
+            "частный риэлтор",
+            "агент по недвижимости",
+            "брокер по недвижимости",
+            "real estate agent",
+            "real estate agents",
+            "realtor",
+            "realtors",
+            "private realtor",
+        ),
+    ),
+    (
+        ("fitness_trainer",),
+        (),
+        (
+            "персональний тренер",
+            "персональні тренери",
+            "фітнес тренер",
+            "фітнес-тренер",
+            "фітнес тренери",
+            "фитнес тренер",
+            "фитнес-тренер",
+            "персональный тренер",
+            "персональные тренеры",
+            "personal trainer",
+            "personal trainers",
+            "fitness trainer",
+            "fitness trainers",
+        ),
+    ),
+    (
+        ("sports_and_fitness_instruction", "fitness_trainer"),
+        (),
+        (
+            "спортивний тренер",
+            "спортивні тренери",
+            "спортивный тренер",
+            "спортивные тренеры",
+            "sports trainer",
+            "sports trainers",
+            "sports coach",
+        ),
+    ),
+    (
+        ("nutritionist", "dietitian"),
+        (),
+        (
+            "нутриціолог",
+            "нутриціологи",
+            "дієтолог",
+            "дієтологи",
+            "консультант з харчування",
+            "консультанти з харчування",
+            "нутрициолог",
+            "нутрициологи",
+            "диетолог",
+            "диетологи",
+            "консультант по питанию",
+            "консультанты по питанию",
+            "nutritionist",
+            "nutritionists",
+            "dietitian",
+            "dietitians",
+            "nutrition consultant",
+        ),
+    ),
+)
+
+for _categories, _patterns, _aliases in ADDITIONAL_NICHE_GROUPS:
+    for _alias in _aliases:
+        NICHE_ALIASES[_alias] = (_categories, _patterns)
+
+SUPPORTED_NICHE_OPTIONS = (
+    "автосервіс",
+    "стоматологія",
+    "салон краси",
+    "ветеринарна клініка",
+    "мовна школа",
+    "школа танців",
+    "репетитор",
+    "фотограф",
+    "весільний організатор",
+    "дизайнер інтер'єру",
+    "ріелтор",
+    "персональний тренер",
+    "спортивний тренер",
+    "нутриціолог",
+    "клінінг",
+    "юрист",
+    "будівельна компанія",
+    "агентство нерухомості",
+)
+
+NICHE_FILLER_WORDS = frozenset(
+    {
+        "приватний",
+        "приватна",
+        "приватне",
+        "приватні",
+        "студія",
+        "студії",
+        "школа",
+        "школи",
+        "центр",
+        "центри",
+        "послуга",
+        "послуги",
+        "практика",
+        "частный",
+        "частная",
+        "частное",
+        "частные",
+        "студия",
+        "студии",
+        "школы",
+        "услуга",
+        "услуги",
+        "private",
+        "studio",
+        "studios",
+        "school",
+        "schools",
+        "center",
+        "centers",
+        "centre",
+        "centres",
+        "service",
+        "services",
+        "practice",
+    }
+)
+
+PRIVATE_SPECIALIST_CATEGORIES = frozenset(
+    {
+        "private_tutor",
+        "photographer",
+        "wedding_planning",
+        "party_and_event_planning",
+        "interior_design",
+        "real_estate_agent",
+        "fitness_trainer",
+        "sports_and_fitness_instruction",
+        "nutritionist",
+        "dietitian",
+    }
+)
+
 
 def fetch_json(url: str) -> Any:
     request = Request(url, headers={"User-Agent": USER_AGENT})
@@ -218,22 +544,139 @@ def latest_release() -> str:
 
 def normalize_text(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", value).casefold().strip()
+    normalized = re.sub(r"['’ʼ`]", "", normalized)
+    normalized = re.sub(r"[-‐‑‒–—]+", " ", normalized)
     return re.sub(r"\s+", " ", normalized)
+
+
+class NicheSelectionRequiredError(ValueError):
+    """Raised when a niche must be selected explicitly instead of guessed."""
+
+    def __init__(self, message: str, suggestions: tuple[str, ...]) -> None:
+        self.suggestions = suggestions
+        choices = "; ".join(suggestions)
+        super().__init__(f"{message} Оберіть і введіть один із варіантів: {choices}.")
+
+
+def normalize_niche_key(value: str) -> str:
+    words = (
+        word
+        for word in normalize_text(value).split()
+        if word not in NICHE_FILLER_WORDS
+    )
+    return " ".join(words)
+
+
+def _build_niche_indexes() -> tuple[
+    dict[str, tuple[tuple[str, ...], tuple[str, ...]]],
+    dict[str, tuple[tuple[str, ...], tuple[str, ...]]],
+]:
+    exact: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
+    simplified_buckets: dict[
+        str, set[tuple[tuple[str, ...], tuple[str, ...]]]
+    ] = {}
+
+    for alias, mapping in NICHE_ALIASES.items():
+        exact[normalize_text(alias)] = mapping
+        simplified = normalize_niche_key(alias)
+        if simplified:
+            simplified_buckets.setdefault(simplified, set()).add(mapping)
+
+    simplified = {
+        key: next(iter(mappings))
+        for key, mappings in simplified_buckets.items()
+        if len(mappings) == 1
+    }
+    return exact, simplified
+
+
+NORMALIZED_NICHE_ALIASES, SIMPLIFIED_NICHE_ALIASES = _build_niche_indexes()
+
+_AMBIGUOUS_NICHE_OPTIONS = {
+    "тренер": ("персональний тренер", "спортивний тренер", "школа танців"),
+    "тренери": ("персональний тренер", "спортивний тренер", "школа танців"),
+    "тренерка": ("персональний тренер", "спортивний тренер", "школа танців"),
+    "тренерки": ("персональний тренер", "спортивний тренер", "школа танців"),
+    "тренеры": ("персональний тренер", "спортивний тренер", "школа танців"),
+    "trainer": ("персональний тренер", "спортивний тренер", "школа танців"),
+    "coach": ("персональний тренер", "спортивний тренер", "школа танців"),
+    "викладач": ("репетитор", "мовна школа", "школа танців"),
+    "викладачка": ("репетитор", "мовна школа", "школа танців"),
+    "викладачі": ("репетитор", "мовна школа", "школа танців"),
+    "учитель": ("репетитор", "мовна школа", "школа танців"),
+    "учителька": ("репетитор", "мовна школа", "школа танців"),
+    "учителі": ("репетитор", "мовна школа", "школа танців"),
+    "преподаватель": ("репетитор", "мовна школа", "школа танців"),
+    "преподаватели": ("репетитор", "мовна школа", "школа танців"),
+    "teacher": ("репетитор", "мовна школа", "школа танців"),
+}
+AMBIGUOUS_NICHE_OPTIONS = {
+    normalize_text(alias): suggestions
+    for alias, suggestions in _AMBIGUOUS_NICHE_OPTIONS.items()
+}
+
+
+def nearest_supported_niches(niche: str, limit: int = 3) -> tuple[str, ...]:
+    normalized = normalize_text(niche)
+
+    def similarity(option: str) -> float:
+        option_normalized = normalize_text(option)
+        sequence_score = SequenceMatcher(None, normalized, option_normalized).ratio()
+        query_words = set(normalized.split())
+        option_words = set(option_normalized.split())
+        overlap_score = len(query_words & option_words) / max(
+            len(query_words | option_words), 1
+        )
+        return max(sequence_score, overlap_score)
+
+    ranked = sorted(
+        SUPPORTED_NICHE_OPTIONS,
+        key=lambda option: (-similarity(option), option),
+    )
+    return tuple(ranked[:limit])
 
 
 def niche_filter(niche: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
     normalized = normalize_text(niche)
-    if normalized in NICHE_ALIASES:
-        return NICHE_ALIASES[normalized]
+    if normalized in AMBIGUOUS_NICHE_OPTIONS:
+        raise NicheSelectionRequiredError(
+            "Запит надто широкий, тому категорію не вибрано автоматично.",
+            AMBIGUOUS_NICHE_OPTIONS[normalized],
+        )
+    if normalized in NORMALIZED_NICHE_ALIASES:
+        return NORMALIZED_NICHE_ALIASES[normalized]
+
+    simplified = normalize_niche_key(niche)
+    if simplified in AMBIGUOUS_NICHE_OPTIONS:
+        raise NicheSelectionRequiredError(
+            "Запит надто широкий, тому категорію не вибрано автоматично.",
+            AMBIGUOUS_NICHE_OPTIONS[simplified],
+        )
+    if simplified in SIMPLIFIED_NICHE_ALIASES:
+        return SIMPLIFIED_NICHE_ALIASES[simplified]
 
     category_code = re.sub(r"[^a-z0-9]+", "_", normalized).strip("_")
     if not category_code:
-        raise ValueError(
-            "Для цієї української назви ще немає локального зіставлення. "
-            "Спробуйте конкретнішу назву (наприклад: аптека, перукарня, "
-            "магазин одягу) або англійський код категорії Overture."
+        raise NicheSelectionRequiredError(
+            "Точного локального зіставлення для цього запиту немає, "
+            "тому збір не запущено.",
+            nearest_supported_niches(niche),
         )
     return (category_code,), (f"%{category_code}%",)
+
+
+def niche_coverage_warning(niche: str) -> str | None:
+    try:
+        exact_categories, _patterns = niche_filter(niche)
+    except NicheSelectionRequiredError:
+        return None
+    if PRIVATE_SPECIALIST_CATEGORIES.intersection(exact_categories):
+        return (
+            "⚠️ Overture Maps краще покриває компанії та заклади, ніж "
+            "приватних спеціалістів. Нульова або мала кількість результатів "
+            "не означає, що таких спеціалістів у вибраному місті немає."
+        )
+    return None
 
 
 def is_ukraine_scope(value: str) -> bool:
@@ -499,6 +942,9 @@ def main() -> int:
         leads = select_leads(deduplicate(all_leads), args.limit)
         write_csv(leads, args.output)
         print_statistics(leads, args.output, release)
+        coverage_warning = niche_coverage_warning(args.niche)
+        if coverage_warning:
+            print(f"\n{coverage_warning}")
         return 0
     except (duckdb.Error, OSError, RuntimeError, ValueError, KeyError) as error:
         print(f"Помилка: {error}", file=sys.stderr)

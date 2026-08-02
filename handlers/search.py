@@ -239,6 +239,9 @@ async def send_search_result(message: Message, result: SearchResult) -> None:
     view = ViewState()
     view_states[result.user_id] = view
     page = make_page(result, page=0, high_only=False, lead_type=None)
+    coverage_warning = collector.niche_coverage_warning(result.niche)
+    if coverage_warning:
+        await message.answer(coverage_warning)
     await message.answer(
         page.text,
         reply_markup=results_keyboard(result, view),
