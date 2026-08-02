@@ -1,0 +1,12 @@
+2026-08-02 00:01:41,779 INFO aiogram.dispatcher: Start polling
+2026-08-02 00:01:41,965 INFO aiogram.dispatcher: Run polling for bot @Crmanalystbot id=8871531147 - 'CRM_analyst'
+2026-08-02 00:17:16,047 INFO aiogram.event: Update id=868308852 is handled. Duration 204 ms by bot id=8871531147
+2026-08-02 00:17:21,477 INFO aiogram.event: Update id=868308853 is handled. Duration 61 ms by bot id=8871531147
+2026-08-02 00:17:24,956 INFO aiogram.event: Update id=868308854 is handled. Duration 77 ms by bot id=8871531147
+2026-08-02 00:17:32,537 INFO aiogram.event: Update id=868308855 is handled. Duration 77 ms by bot id=8871531147
+2026-08-02 00:17:34,327 INFO aiogram.event: Update id=868308856 is handled. Duration 141 ms by bot id=8871531147
+2026-08-02 00:19:30,315 INFO aiogram.event: Update id=868308857 is handled. Duration 202 ms by bot id=8871531147
+2026-08-02 00:19:36,165 INFO aiogram.event: Update id=868308858 is handled. Duration 266 ms by bot id=8871531147
+2026-08-02 00:19:41,766 INFO aiogram.event: Update id=868308859 is handled. Duration 280 ms by bot id=8871531147
+2026-08-02 00:19:43,199 INFO aiogram.event: Update id=868308860 is handled. Duration 61 ms by bot id=8871531147
+2026-08-02 00:19:46,555 INFO aiogram.event: Update id=868308861 is handled. Duration 250 ms by bot id=8871531147

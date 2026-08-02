@@ -1,0 +1,26 @@
+2026-07-31 20:47:11,644 INFO aiogram.dispatcher: Start polling
+2026-07-31 20:47:11,931 INFO aiogram.dispatcher: Run polling for bot @Crmanalystbot id=8871531147 - 'CRM_analyst'
+2026-07-31 20:47:41,609 INFO aiogram.event: Update id=868308832 is handled. Duration 264 ms by bot id=8871531147
+2026-07-31 20:47:48,079 INFO aiogram.event: Update id=868308833 is handled. Duration 140 ms by bot id=8871531147
+2026-07-31 20:47:50,969 INFO aiogram.event: Update id=868308834 is handled. Duration 250 ms by bot id=8871531147
+2026-07-31 20:47:52,226 INFO aiogram.event: Update id=868308835 is handled. Duration 171 ms by bot id=8871531147
+2026-07-31 20:47:53,944 INFO aiogram.event: Update id=868308836 is handled. Duration 313 ms by bot id=8871531147
+2026-07-31 20:48:40,804 INFO aiogram.event: Update id=868308837 is handled. Duration 203 ms by bot id=8871531147
+2026-07-31 20:48:44,840 INFO aiogram.event: Update id=868308838 is handled. Duration 390 ms by bot id=8871531147
+2026-07-31 20:48:55,445 INFO aiogram.event: Update id=868308839 is handled. Duration 265 ms by bot id=8871531147
+2026-07-31 20:50:35,845 ERROR aiogram.dispatcher: Failed to fetch updates - TelegramNetworkError: HTTP Client says - Request timeout error
+2026-07-31 20:50:35,845 WARNING aiogram.dispatcher: Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8871531147)
+2026-07-31 20:50:47,007 INFO aiogram.dispatcher: Connection established (tryings = 1, bot id = 8871531147)
+2026-07-31 20:52:19,848 ERROR aiogram.dispatcher: Failed to fetch updates - TelegramNetworkError: HTTP Client says - Request timeout error
+2026-07-31 20:52:19,848 WARNING aiogram.dispatcher: Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8871531147)
+2026-07-31 20:52:31,205 INFO aiogram.dispatcher: Connection established (tryings = 1, bot id = 8871531147)
+2026-07-31 20:54:57,088 INFO aiogram.event: Update id=868308840 is handled. Duration 390 ms by bot id=8871531147
+2026-07-31 20:55:05,172 INFO aiogram.event: Update id=868308841 is handled. Duration 343 ms by bot id=8871531147
+2026-07-31 20:55:09,532 INFO aiogram.event: Update id=868308842 is handled. Duration 406 ms by bot id=8871531147
+2026-07-31 20:55:11,661 INFO aiogram.event: Update id=868308843 is handled. Duration 343 ms by bot id=8871531147
+2026-07-31 20:55:14,200 INFO aiogram.event: Update id=868308844 is handled. Duration 234 ms by bot id=8871531147
+2026-07-31 20:55:22,946 INFO aiogram.event: Update id=868308845 is handled. Duration 125 ms by bot id=8871531147
+2026-07-31 20:55:29,721 INFO aiogram.event: Update id=868308846 is handled. Duration 125 ms by bot id=8871531147
+2026-07-31 20:55:34,300 INFO aiogram.event: Update id=868308847 is handled. Duration 125 ms by bot id=8871531147
+2026-07-31 20:55:42,866 INFO aiogram.event: Update id=868308848 is handled. Duration 141 ms by bot id=8871531147
+2026-07-31 20:55:46,187 INFO aiogram.event: Update id=868308849 is handled. Duration 186 ms by bot id=8871531147
