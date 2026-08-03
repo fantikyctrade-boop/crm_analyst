@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import shutil
 import tempfile
 import threading
@@ -15,6 +16,8 @@ from typing import Any
 
 import lead_collector as collector
 import lead_scorer as scorer
+
+logger = logging.getLogger(__name__)
 
 
 class SearchAlreadyRunningError(RuntimeError):
@@ -104,6 +107,9 @@ class LeadPipeline:
         try:
             parsed_cities = collector.parse_cities(",".join(cities))
             exact_categories, category_patterns = collector.niche_filter(niche)
+            collector.log_niche_resolution(
+                niche, exact_categories, category_patterns
+            )
             release = collector.latest_release()
             candidate_limit = max(limit * 3, 100)
             all_leads: list[dict[str, Any]] = []
@@ -117,23 +123,33 @@ class LeadPipeline:
                     else:
                         bounds = self._geocode_city(city)
                         country_code = None
-                    all_leads.extend(
-                        collector.fetch_places(
-                            connection,
-                            release,
-                            city,
-                            bounds,
-                            exact_categories,
-                            category_patterns,
-                            candidate_limit,
-                            country_code=country_code,
-                        )
+                    city_leads = collector.fetch_places(
+                        connection,
+                        release,
+                        city,
+                        bounds,
+                        exact_categories,
+                        category_patterns,
+                        candidate_limit,
+                        country_code=country_code,
                     )
+                    logger.info(
+                        "Lead search city complete: city=%r fetched=%d",
+                        city,
+                        len(city_leads),
+                    )
+                    all_leads.extend(city_leads)
             finally:
                 connection.close()
 
-            leads = collector.select_leads(
-                collector.deduplicate(all_leads), limit
+            unique_leads = collector.deduplicate(all_leads)
+            leads = collector.select_leads(unique_leads, limit)
+            logger.info(
+                "Lead search finalized: fetched=%d after_deduplication=%d "
+                "after_limit=%d",
+                len(all_leads),
+                len(unique_leads),
+                len(leads),
             )
             collector.write_csv(leads, raw_csv)
 

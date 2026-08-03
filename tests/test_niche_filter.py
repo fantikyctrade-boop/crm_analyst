@@ -10,19 +10,27 @@ import lead_collector
 class NicheFilterTest(unittest.TestCase):
     VERIFIED_CATEGORIES = frozenset(
         {
-            "private_tutor",
+            "tutoring_service",
             "tutoring_center",
+            "dance_studio",
             "dance_school",
             "language_school",
+            "photography_service",
+            "event_photography_service",
+            "session_photography_service",
+            "event_photography",
+            "session_photography",
             "photographer",
             "wedding_planning",
+            "event_or_party_service",
             "party_and_event_planning",
+            "event_planning",
             "interior_design",
             "real_estate_agent",
             "fitness_trainer",
             "sports_and_fitness_instruction",
+            "nutrition_service",
             "nutritionist",
-            "dietitian",
         }
     )
 
@@ -55,15 +63,29 @@ class NicheFilterTest(unittest.TestCase):
 
     def test_requested_niches_use_verified_overture_categories(self) -> None:
         cases = {
-            "репетитор": {"private_tutor", "tutoring_center"},
-            "Репетитор": {"private_tutor", "tutoring_center"},
-            "приватний репетитор": {"private_tutor", "tutoring_center"},
-            "школа танців": {"dance_school"},
-            "танцювальна студія": {"dance_school"},
+            "репетитор": {"tutoring_service", "tutoring_center"},
+            "Репетитор": {"tutoring_service", "tutoring_center"},
+            "приватний репетитор": {"tutoring_service", "tutoring_center"},
+            "школа танців": {"dance_studio", "dance_school"},
+            "танцювальна студія": {"dance_studio", "dance_school"},
             "школа англійської": {"language_school"},
             "школа іноземних мов": {"language_school"},
-            "фотограф": {"photographer"},
-            "весільний фотограф": {"photographer"},
+            "фотограф": {
+                "photography_service",
+                "event_photography_service",
+                "session_photography_service",
+                "event_photography",
+                "session_photography",
+                "photographer",
+            },
+            "весільний фотограф": {
+                "photography_service",
+                "event_photography_service",
+                "session_photography_service",
+                "event_photography",
+                "session_photography",
+                "photographer",
+            },
             "весільний організатор": {"wedding_planning"},
             "дизайнер інтер'єру": {"interior_design"},
             "ріелтор": {"real_estate_agent"},
@@ -71,8 +93,8 @@ class NicheFilterTest(unittest.TestCase):
             "ріелтор приватна практика": {"real_estate_agent"},
             "персональний тренер": {"fitness_trainer"},
             "фітнес-тренер": {"fitness_trainer"},
-            "нутриціолог": {"nutritionist", "dietitian"},
-            "дієтолог": {"nutritionist", "dietitian"},
+            "нутриціолог": {"nutrition_service", "nutritionist"},
+            "дієтолог": {"nutrition_service", "nutritionist"},
         }
 
         for niche, expected in cases.items():
@@ -84,25 +106,25 @@ class NicheFilterTest(unittest.TestCase):
 
     def test_russian_and_english_aliases(self) -> None:
         cases = {
-            "частный репетитор": "private_tutor",
-            "танцевальная школа": "dance_school",
+            "частный репетитор": "tutoring_service",
+            "танцевальная школа": "dance_studio",
             "курсы английского": "language_school",
-            "свадебный фотограф": "photographer",
+            "свадебный фотограф": "photography_service",
             "организатор свадеб": "wedding_planning",
-            "ивент-агентство": "party_and_event_planning",
+            "ивент-агентство": "event_or_party_service",
             "дизайнер интерьера": "interior_design",
             "частный риэлтор": "real_estate_agent",
             "фитнес-тренер": "fitness_trainer",
             "спортивный тренер": "sports_and_fitness_instruction",
-            "консультант по питанию": "nutritionist",
-            "dance studio": "dance_school",
+            "консультант по питанию": "nutrition_service",
+            "dance studio": "dance_studio",
             "language school": "language_school",
-            "photography studio": "photographer",
-            "event planner": "party_and_event_planning",
+            "photography studio": "photography_service",
+            "event planner": "event_or_party_service",
             "interior design studio": "interior_design",
             "realtor": "real_estate_agent",
             "fitness trainer": "fitness_trainer",
-            "dietitian": "dietitian",
+            "dietitian": "nutrition_service",
         }
 
         for niche, expected in cases.items():
@@ -112,15 +134,15 @@ class NicheFilterTest(unittest.TestCase):
 
     def test_normalization_is_safe_and_handles_common_variants(self) -> None:
         cases = {
-            "  ШКОЛА     ТАНЦІВ  ": "dance_school",
+            "  ШКОЛА     ТАНЦІВ  ": "dance_studio",
             "фітнес--тренер": "fitness_trainer",
             "дизайнер інтер’єру": "interior_design",
             "дизайнер інтерєру": "interior_design",
             "приватна практика ріелтор": "real_estate_agent",
-            "студія   танців": "dance_school",
-            "репетитори": "private_tutor",
-            "фотографи": "photographer",
-            "нутриціологи": "nutritionist",
+            "студія   танців": "dance_studio",
+            "репетитори": "tutoring_service",
+            "фотографи": "photography_service",
+            "нутриціологи": "nutrition_service",
         }
 
         for niche, expected in cases.items():

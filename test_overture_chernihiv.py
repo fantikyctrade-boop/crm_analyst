@@ -12,7 +12,6 @@ from urllib.request import Request, urlopen
 
 import duckdb
 
-
 STAC_CATALOG = "https://stac.overturemaps.org/catalog.json"
 
 # A compact bounding box around Chernihiv, including the city's industrial edges.
