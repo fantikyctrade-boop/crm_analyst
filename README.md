@@ -16,6 +16,26 @@ Telegram-бот на `aiogram 3`, який керує наявними моду�
 - видалення проміжного `leads.csv`, попереднього запуску користувача та
   всіх залишків під час запуску/зупинки бота.
 
+## Необов'язкове збагачення Instagram
+
+Overture Places може містити URL Instagram, але не містить кількість
+підписників. Надійний офіційний варіант — Meta Graph API Business Discovery
+для професійних Instagram-акаунтів. Він потребує Instagram professional account
+ID, access token і відповідних дозволів Meta.
+
+Функція вимкнена за замовчуванням. Без налаштованого провайдера бот лише показує
+посилання на Instagram і не виконує зовнішніх запитів. Для ввімкнення:
+
+```dotenv
+INSTAGRAM_ENRICHMENT_ENABLED=true
+INSTAGRAM_ENRICHMENT_PROVIDER=meta_graph
+INSTAGRAM_ENRICHMENT_API_KEY=Meta_access_token
+INSTAGRAM_ENRICHMENT_ACCOUNT_ID=Instagram_professional_account_id
+```
+
+Запити мають короткий timeout, обмеження паралельності та файловий кеш не менше
+24 годин. Помилки enrichment не блокують збір і не показуються користувачу.
+
 ## Встановлення
 
 Потрібен Python 3.12.

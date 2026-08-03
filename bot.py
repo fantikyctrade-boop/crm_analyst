@@ -13,13 +13,25 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config import Config
 from handlers import router
 from handlers.middleware import WhitelistMiddleware
-from services import LeadPipeline
+from services import LeadPipeline, build_instagram_enrichment
 
 
 async def main() -> None:
     config = Config.from_env()
     pipeline = LeadPipeline()
     pipeline.cleanup_all()
+    instagram = config.instagram
+    instagram_enrichment = build_instagram_enrichment(
+        enabled=instagram.enabled,
+        provider_name=instagram.provider,
+        api_key=instagram.api_key,
+        account_id=instagram.account_id,
+        graph_api_version=instagram.graph_api_version,
+        timeout_seconds=instagram.timeout_seconds,
+        max_concurrency=instagram.max_concurrency,
+        cache_ttl_seconds=instagram.cache_ttl_seconds,
+        cache_path=instagram.cache_path,
+    )
 
     bot = Bot(
         token=config.bot_token,
@@ -35,7 +47,11 @@ async def main() -> None:
     dispatcher.include_router(router)
 
     try:
-        await dispatcher.start_polling(bot, pipeline=pipeline)
+        await dispatcher.start_polling(
+            bot,
+            pipeline=pipeline,
+            instagram_enrichment=instagram_enrichment,
+        )
     finally:
         pipeline.cleanup_all()
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import html
 import logging
+import time
 from collections import Counter
 from dataclasses import dataclass
 
@@ -25,6 +26,7 @@ from aiogram.types import (
 
 import lead_collector as collector
 from lead_scorer import LEAD_TYPES
+from services.instagram_enrichment import InstagramEnrichmentService
 from services.lead_pipeline import (
     LeadPipeline,
     SearchAlreadyRunningError,
@@ -35,6 +37,7 @@ from services.presentation import make_page
 router = Router(name=__name__)
 logger = logging.getLogger(__name__)
 background_tasks: set[asyncio.Task[None]] = set()
+NEW_SEARCH_DEBOUNCE_SECONDS = 2.0
 
 LEAD_TYPE_LABELS = {
     "NO_WEBSITE": "Без сайту",
@@ -65,6 +68,26 @@ class ViewState:
 view_states: dict[int, ViewState] = {}
 
 
+class NewSearchDebouncer:
+    def __init__(self, cooldown_seconds: float) -> None:
+        self.cooldown_seconds = cooldown_seconds
+        self._last_click: dict[int, float] = {}
+
+    def accept(self, user_id: int, now: float | None = None) -> bool:
+        current = time.monotonic() if now is None else now
+        previous = self._last_click.get(user_id)
+        if previous is not None and current - previous < self.cooldown_seconds:
+            return False
+        self._last_click[user_id] = current
+        return True
+
+    def reset(self, user_id: int) -> None:
+        self._last_click.pop(user_id, None)
+
+
+new_search_debouncer = NewSearchDebouncer(NEW_SEARCH_DEBOUNCE_SECONDS)
+
+
 def main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text="Новий пошук")]],
@@ -85,6 +108,14 @@ def confirm_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [InlineKeyboardButton(text="Запустити", callback_data="search:run")],
             [InlineKeyboardButton(text="Новий пошук", callback_data="search:new")],
+        ]
+    )
+
+
+def new_search_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Новий пошук", callback_data="search:new")]
         ]
     )
 
@@ -146,9 +177,13 @@ def results_keyboard(
 
 
 async def begin_search(
-    message: Message, state: FSMContext, pipeline: LeadPipeline
+    message: Message,
+    state: FSMContext,
+    pipeline: LeadPipeline,
+    user_id: int | None = None,
 ) -> None:
-    if message.from_user and await pipeline.is_running(message.from_user.id):
+    effective_user_id = user_id or (message.from_user.id if message.from_user else None)
+    if effective_user_id is not None and await pipeline.is_running(effective_user_id):
         await message.answer("Поточний пошук ще виконується. Дочекайтеся завершення.")
         return
     await state.clear()
@@ -168,16 +203,29 @@ async def command_start(message: Message) -> None:
 async def new_search_message(
     message: Message, state: FSMContext, pipeline: LeadPipeline
 ) -> None:
-    await begin_search(message, state, pipeline)
+    user_id = message.from_user.id if message.from_user else None
+    if user_id is not None and not new_search_debouncer.accept(user_id):
+        await message.answer("Новий пошук уже відкрито.")
+        return
+    await begin_search(message, state, pipeline, user_id=user_id)
 
 
 @router.callback_query(F.data == "search:new")
 async def new_search_callback(
     callback: CallbackQuery, state: FSMContext, pipeline: LeadPipeline
 ) -> None:
+    user_id = callback.from_user.id
+    if not new_search_debouncer.accept(user_id):
+        await callback.answer("Новий пошук уже відкрито.")
+        return
     await callback.answer()
     if callback.message:
-        await begin_search(callback.message, state, pipeline)
+        await begin_search(
+            callback.message,
+            state,
+            pipeline,
+            user_id=user_id,
+        )
 
 
 @router.message(SearchForm.niche)
@@ -235,21 +283,54 @@ async def receive_limit(message: Message, state: FSMContext) -> None:
     )
 
 
-async def send_search_result(message: Message, result: SearchResult) -> None:
+async def refresh_instagram_enrichment(
+    result_message: Message,
+    result: SearchResult,
+    instagram_enrichment: InstagramEnrichmentService,
+) -> None:
+    try:
+        await instagram_enrichment.enrich_rows(result.rows)
+        view = view_states.get(result.user_id, ViewState())
+        page = make_page(result, view.page, view.high_only, view.lead_type)
+        await result_message.edit_text(
+            page.text,
+            reply_markup=results_keyboard(result, view),
+        )
+    except Exception:
+        logger.exception("Could not refresh Instagram enrichment")
+
+
+async def send_search_result(
+    message: Message,
+    result: SearchResult,
+    instagram_enrichment: InstagramEnrichmentService,
+) -> None:
     view = ViewState()
     view_states[result.user_id] = view
+    instagram_profiles = instagram_enrichment.prepare_rows(result.rows)
     page = make_page(result, page=0, high_only=False, lead_type=None)
     coverage_warning = collector.niche_coverage_warning(result.niche)
     if coverage_warning:
         await message.answer(coverage_warning)
-    await message.answer(
+    result_message = await message.answer(
         page.text,
         reply_markup=results_keyboard(result, view),
     )
     await message.answer_document(
         FSInputFile(result.csv_path, filename="scored_leads.csv"),
         caption="Повний scored_leads.csv",
+        reply_markup=new_search_keyboard(),
     )
+    if instagram_profiles and instagram_enrichment.enabled:
+        task = asyncio.create_task(
+            refresh_instagram_enrichment(
+                result_message,
+                result,
+                instagram_enrichment,
+            )
+        )
+        background_tasks.add(task)
+        task.add_done_callback(background_tasks.discard)
 
 
 async def run_search_in_background(
@@ -259,22 +340,30 @@ async def run_search_in_background(
     niche: str,
     cities: list[str],
     limit: int,
+    instagram_enrichment: InstagramEnrichmentService,
 ) -> None:
     try:
         result = await pipeline.run(user_id, niche, cities, limit)
-        await send_search_result(message, result)
+        await send_search_result(message, result, instagram_enrichment)
     except SearchAlreadyRunningError:
-        await message.answer("Пошук уже виконується. Дочекайтеся завершення.")
+        await message.answer(
+            "Пошук уже виконується. Дочекайтеся завершення.",
+            reply_markup=new_search_keyboard(),
+        )
     except Exception:
         logger.exception("Lead search failed for user %s", user_id)
         await message.answer(
-            "Не вдалося завершити пошук. Перевірте мережу та параметри й спробуйте ще раз."
+            "Не вдалося завершити пошук. Перевірте мережу та параметри й спробуйте ще раз.",
+            reply_markup=new_search_keyboard(),
         )
 
 
 @router.callback_query(SearchForm.confirm, F.data == "search:run")
 async def run_search(
-    callback: CallbackQuery, state: FSMContext, pipeline: LeadPipeline
+    callback: CallbackQuery,
+    state: FSMContext,
+    pipeline: LeadPipeline,
+    instagram_enrichment: InstagramEnrichmentService,
 ) -> None:
     if not callback.from_user or not callback.message:
         await callback.answer()
@@ -309,6 +398,7 @@ async def run_search(
             data["niche"],
             data["cities"],
             data["limit"],
+            instagram_enrichment,
         )
     )
     background_tasks.add(task)

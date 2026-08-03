@@ -9,10 +9,13 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import logging
 import re
 import sys
 import time
 import unicodedata
+from collections import Counter
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
@@ -20,6 +23,8 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 import duckdb
+
+logger = logging.getLogger(__name__)
 
 STAC_CATALOG = "https://stac.overturemaps.org/catalog.json"
 NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search"
@@ -207,7 +212,7 @@ ADDITIONAL_NICHE_GROUPS: tuple[
     tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]], ...
 ] = (
     (
-        ("private_tutor", "tutoring_center"),
+        ("tutoring_service", "tutoring_center"),
         (),
         (
             "репетитор",
@@ -229,7 +234,7 @@ ADDITIONAL_NICHE_GROUPS: tuple[
         ),
     ),
     (
-        ("dance_school",),
+        ("dance_studio", "dance_school"),
         (),
         (
             "школа танців",
@@ -277,7 +282,14 @@ ADDITIONAL_NICHE_GROUPS: tuple[
         ),
     ),
     (
-        ("photographer",),
+        (
+            "photography_service",
+            "event_photography_service",
+            "session_photography_service",
+            "event_photography",
+            "session_photography",
+            "photographer",
+        ),
         (),
         (
             "фотограф",
@@ -320,7 +332,7 @@ ADDITIONAL_NICHE_GROUPS: tuple[
         ),
     ),
     (
-        ("party_and_event_planning",),
+        ("event_or_party_service", "party_and_event_planning", "event_planning"),
         (),
         (
             "івент агенція",
@@ -425,7 +437,7 @@ ADDITIONAL_NICHE_GROUPS: tuple[
         ),
     ),
     (
-        ("nutritionist", "dietitian"),
+        ("nutrition_service", "nutritionist"),
         (),
         (
             "нутриціолог",
@@ -515,16 +527,24 @@ NICHE_FILLER_WORDS = frozenset(
 
 PRIVATE_SPECIALIST_CATEGORIES = frozenset(
     {
-        "private_tutor",
+        "tutoring_service",
+        "tutoring_center",
+        "photography_service",
+        "event_photography_service",
+        "session_photography_service",
+        "event_photography",
+        "session_photography",
         "photographer",
         "wedding_planning",
+        "event_or_party_service",
         "party_and_event_planning",
+        "event_planning",
         "interior_design",
         "real_estate_agent",
         "fitness_trainer",
         "sports_and_fitness_instruction",
+        "nutrition_service",
         "nutritionist",
-        "dietitian",
     }
 )
 
@@ -724,37 +744,142 @@ def open_overture() -> duckdb.DuckDBPyConnection:
     return connection
 
 
-def fetch_places(
-    connection: duckdb.DuckDBPyConnection,
+@dataclass(frozen=True, slots=True)
+class RejectedPlace:
+    overture_id: str
+    name: str
+    category: str
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class PlaceFilterDiagnostics:
+    before_filters: int
+    after_country: int
+    after_category: int
+    after_status: int
+    after_name: int
+    after_limit: int
+    rejected: tuple[RejectedPlace, ...] = ()
+
+
+def log_niche_resolution(
+    niche: str,
+    exact_categories: tuple[str, ...],
+    category_patterns: tuple[str, ...],
+) -> None:
+    logger.info(
+        "Niche resolved: raw=%r normalized=%r categories=%s patterns=%s",
+        niche,
+        normalize_text(niche),
+        list(exact_categories),
+        list(category_patterns),
+    )
+
+
+def _category_filter_sql(
+    exact_categories: tuple[str, ...],
+    category_patterns: tuple[str, ...],
+) -> tuple[str, list[Any]]:
+    parts: list[str] = []
+    parameters: list[Any] = []
+
+    if exact_categories:
+        placeholders = ", ".join("?" for _ in exact_categories)
+        parts.append(
+            "("
+            f"taxonomy.primary IN ({placeholders}) "
+            f"OR basic_category IN ({placeholders}) "
+            f"OR categories.primary IN ({placeholders}) "
+            "OR list_has_any("
+            "COALESCE(taxonomy.hierarchy, []::VARCHAR[]), ?::VARCHAR[]"
+            ") "
+            "OR list_has_any("
+            "COALESCE(taxonomy.alternates, []::VARCHAR[]), ?::VARCHAR[]"
+            ") "
+            "OR list_has_any("
+            "COALESCE(categories.alternate, []::VARCHAR[]), ?::VARCHAR[]"
+            ")"
+            ")"
+        )
+        for _field in range(3):
+            parameters.extend(exact_categories)
+        parameters.extend([list(exact_categories)] * 3)
+
+    category_text = """
+        concat_ws(
+            ',',
+            taxonomy.primary,
+            basic_category,
+            categories.primary,
+            array_to_string(
+                COALESCE(taxonomy.hierarchy, []::VARCHAR[]), ','
+            ),
+            array_to_string(
+                COALESCE(taxonomy.alternates, []::VARCHAR[]), ','
+            ),
+            array_to_string(
+                COALESCE(categories.alternate, []::VARCHAR[]), ','
+            )
+        )
+    """
+    for pattern in category_patterns:
+        parts.append(f"({category_text} ILIKE ?)")
+        parameters.append(pattern)
+
+    return " OR ".join(parts) if parts else "FALSE", parameters
+
+
+def matches_overture_categories(
+    exact_categories: tuple[str, ...],
+    category_patterns: tuple[str, ...],
+    *,
+    taxonomy_primary: str = "",
+    basic_category: str = "",
+    legacy_primary: str = "",
+    taxonomy_hierarchy: tuple[str, ...] = (),
+    taxonomy_alternates: tuple[str, ...] = (),
+    legacy_alternates: tuple[str, ...] = (),
+) -> bool:
+    """Mirror the SQL category predicate for deterministic unit tests."""
+    values = (
+        taxonomy_primary,
+        basic_category,
+        legacy_primary,
+        *taxonomy_hierarchy,
+        *taxonomy_alternates,
+        *legacy_alternates,
+    )
+    normalized_values = tuple(value.casefold() for value in values if value)
+    if any(category.casefold() in normalized_values for category in exact_categories):
+        return True
+
+    for pattern in category_patterns:
+        regex = "^" + "".join(
+            ".*" if character == "%" else "." if character == "_" else re.escape(character)
+            for character in pattern.casefold()
+        ) + "$"
+        if any(re.fullmatch(regex, value) for value in normalized_values):
+            return True
+    return False
+
+
+def _build_places_query(
     release: str,
     city: str,
     bounds: tuple[float, float, float, float],
     exact_categories: tuple[str, ...],
     category_patterns: tuple[str, ...],
     candidate_limit: int,
-    country_code: str | None = None,
-) -> list[dict[str, Any]]:
+    country_code: str | None,
+) -> tuple[str, list[Any]]:
     parquet_path = (
         f"s3://overturemaps-us-west-2/release/{release}/theme=places/type=place/*"
     )
     category = "COALESCE(taxonomy.primary, basic_category, categories.primary)"
-    category_parts: list[str] = []
-    category_parameters: list[str] = []
-
-    if exact_categories:
-        placeholders = ", ".join("?" for _ in exact_categories)
-        category_parts.append(
-            f"({category} IN ({placeholders}) "
-            "OR list_has_any("
-            "COALESCE(taxonomy.hierarchy, []::VARCHAR[]), ?::VARCHAR[]"
-            "))"
-        )
-        category_parameters.extend(exact_categories)
-        category_parameters.append(list(exact_categories))
-    for pattern in category_patterns:
-        category_parts.append(f"{category} ILIKE ?")
-        category_parameters.append(pattern)
-
+    category_filter, category_parameters = _category_filter_sql(
+        exact_categories, category_patterns
+    )
     country_clause = ""
     country_parameters: list[str] = []
     if country_code:
@@ -780,7 +905,7 @@ def fetch_places(
         WHERE bbox.xmin BETWEEN ? AND ?
           AND bbox.ymin BETWEEN ? AND ?
           {country_clause}
-          AND ({" OR ".join(category_parts)})
+          AND ({category_filter})
           AND COALESCE(operating_status, 'open') <> 'permanently_closed'
           AND names.primary IS NOT NULL
           AND trim(names.primary) <> ''
@@ -796,7 +921,7 @@ def fetch_places(
     """
 
     west, south, east, north = bounds
-    parameters = [
+    parameters: list[Any] = [
         city,
         release,
         parquet_path,
@@ -808,15 +933,282 @@ def fetch_places(
         *category_parameters,
         candidate_limit,
     ]
+    return query, parameters
+
+
+def diagnose_place_filters(
+    connection: duckdb.DuckDBPyConnection,
+    release: str,
+    bounds: tuple[float, float, float, float],
+    exact_categories: tuple[str, ...],
+    category_patterns: tuple[str, ...],
+    candidate_limit: int,
+    country_code: str | None = None,
+    *,
+    include_rejections: bool = False,
+) -> PlaceFilterDiagnostics:
+    parquet_path = (
+        f"s3://overturemaps-us-west-2/release/{release}/theme=places/type=place/*"
+    )
+    category = "COALESCE(taxonomy.primary, basic_category, categories.primary)"
+    category_filter, category_parameters = _category_filter_sql(
+        exact_categories, category_patterns
+    )
+    country_filter = "addresses[1].country = ?" if country_code else "TRUE"
+    country_parameters = [country_code] if country_code else []
+    west, south, east, north = bounds
+
+    evaluated_cte = f"""
+        WITH bounded AS (
+            SELECT
+                id,
+                names.primary AS name,
+                {category} AS category,
+                confidence,
+                phones,
+                websites,
+                emails,
+                COALESCE(({country_filter}), FALSE) AS country_match,
+                COALESCE(({category_filter}), FALSE) AS category_match,
+                COALESCE(operating_status, 'open') <> 'permanently_closed'
+                    AS status_match,
+                names.primary IS NOT NULL AND trim(names.primary) <> ''
+                    AS name_match
+            FROM read_parquet(?)
+            WHERE bbox.xmin BETWEEN ? AND ?
+              AND bbox.ymin BETWEEN ? AND ?
+        ),
+        classified AS (
+            SELECT
+                *,
+                CASE
+                    WHEN NOT country_match THEN 'country_mismatch'
+                    WHEN NOT category_match THEN 'category_mismatch'
+                    WHEN NOT status_match THEN 'permanently_closed'
+                    WHEN NOT name_match THEN 'missing_name'
+                    ELSE NULL
+                END AS rejection_reason
+            FROM bounded
+        )
+    """
+    base_parameters: list[Any] = [
+        *country_parameters,
+        *category_parameters,
+        parquet_path,
+        west,
+        east,
+        south,
+        north,
+    ]
+    summary_query = f"""
+        {evaluated_cte}
+        SELECT
+            count(*) AS before_filters,
+            count_if(country_match) AS after_country,
+            count_if(country_match AND category_match) AS after_category,
+            count_if(country_match AND category_match AND status_match)
+                AS after_status,
+            count_if(
+                country_match AND category_match AND status_match AND name_match
+            ) AS after_name,
+            least(
+                count_if(
+                    country_match
+                    AND category_match
+                    AND status_match
+                    AND name_match
+                ),
+                ?
+            ) AS after_limit
+        FROM classified
+    """
+    counts = connection.execute(
+        summary_query, [*base_parameters, candidate_limit]
+    ).fetchone()
+    if counts is None:
+        counts = (0, 0, 0, 0, 0, 0)
+
+    rejected: tuple[RejectedPlace, ...] = ()
+    if include_rejections:
+        rejected_query = f"""
+            {evaluated_cte},
+            ranked AS (
+                SELECT
+                    *,
+                    row_number() OVER (
+                        PARTITION BY rejection_reason IS NULL
+                        ORDER BY
+                            CASE WHEN
+                                COALESCE(array_length(phones), 0)
+                                + COALESCE(array_length(websites), 0)
+                                + COALESCE(array_length(emails), 0) > 0
+                            THEN 0 ELSE 1 END,
+                            confidence DESC NULLS LAST,
+                            name
+                    ) AS accepted_rank
+                FROM classified
+            ),
+            finalized AS (
+                SELECT
+                    *,
+                    CASE
+                        WHEN rejection_reason IS NULL AND accepted_rank > ?
+                            THEN 'candidate_limit'
+                        ELSE rejection_reason
+                    END AS final_reason
+                FROM ranked
+            )
+            SELECT id, name, category, final_reason
+            FROM finalized
+            WHERE final_reason IS NOT NULL
+            ORDER BY final_reason, id
+        """
+        rejected = tuple(
+            RejectedPlace(
+                overture_id=str(overture_id or ""),
+                name=str(name or ""),
+                category=str(place_category or ""),
+                reason=str(reason),
+            )
+            for overture_id, name, place_category, reason in connection.execute(
+                rejected_query, [*base_parameters, candidate_limit]
+            ).fetchall()
+        )
+
+    return PlaceFilterDiagnostics(
+        before_filters=int(counts[0]),
+        after_country=int(counts[1]),
+        after_category=int(counts[2]),
+        after_status=int(counts[3]),
+        after_name=int(counts[4]),
+        after_limit=int(counts[5]),
+        rejected=rejected,
+    )
+
+
+def log_place_diagnostics(city: str, diagnostics: PlaceFilterDiagnostics) -> None:
+    rejection_counts = Counter(item.reason for item in diagnostics.rejected)
+    if not rejection_counts:
+        rejection_counts.update(
+            {
+                "country_mismatch": (
+                    diagnostics.before_filters - diagnostics.after_country
+                ),
+                "category_mismatch": (
+                    diagnostics.after_country - diagnostics.after_category
+                ),
+                "permanently_closed": (
+                    diagnostics.after_category - diagnostics.after_status
+                ),
+                "missing_name": diagnostics.after_status - diagnostics.after_name,
+                "candidate_limit": diagnostics.after_name - diagnostics.after_limit,
+            }
+        )
+        rejection_counts = Counter(
+            {reason: count for reason, count in rejection_counts.items() if count}
+        )
+    logger.info(
+        "Overture filter stages: city=%r before_filters=%d after_country=%d "
+        "after_category=%d after_status=%d after_name=%d after_limit=%d "
+        "rejection_counts=%s",
+        city,
+        diagnostics.before_filters,
+        diagnostics.after_country,
+        diagnostics.after_category,
+        diagnostics.after_status,
+        diagnostics.after_name,
+        diagnostics.after_limit,
+        dict(rejection_counts),
+    )
+    if not diagnostics.before_filters:
+        logger.warning(
+            "Overture returned 0 records inside the requested bounds for %r "
+            "before category, status, and name filters.",
+            city,
+        )
+    elif not diagnostics.after_category:
+        logger.warning(
+            "Overture returned %d bounded records for %r, but the category "
+            "filter rejected all of them.",
+            diagnostics.after_country,
+            city,
+        )
+    elif diagnostics.after_category and not diagnostics.after_status:
+        logger.warning(
+            "Overture category filter matched %d records for %r, but the "
+            "operating-status filter rejected all of them.",
+            diagnostics.after_category,
+            city,
+        )
+    elif diagnostics.after_status and not diagnostics.after_name:
+        logger.warning(
+            "Overture status filter kept %d records for %r, but all had a "
+            "missing or blank primary name.",
+            diagnostics.after_status,
+            city,
+        )
+    for item in diagnostics.rejected:
+        logger.debug(
+            "Overture record rejected: id=%r name=%r category=%r reason=%s",
+            item.overture_id,
+            item.name,
+            item.category,
+            item.reason,
+        )
+
+
+def fetch_places(
+    connection: duckdb.DuckDBPyConnection,
+    release: str,
+    city: str,
+    bounds: tuple[float, float, float, float],
+    exact_categories: tuple[str, ...],
+    category_patterns: tuple[str, ...],
+    candidate_limit: int,
+    country_code: str | None = None,
+    *,
+    diagnostics: bool = False,
+) -> list[dict[str, Any]]:
+    query, parameters = _build_places_query(
+        release,
+        city,
+        bounds,
+        exact_categories,
+        category_patterns,
+        candidate_limit,
+        country_code,
+    )
+    logger.info(
+        "Overture query: city=%r release=%s sql=%s parameters=%r",
+        city,
+        release,
+        " ".join(query.split()),
+        parameters,
+    )
     cursor = connection.execute(query, parameters)
     columns = [item[0] for item in cursor.description]
-    return [
+    places = [
         {
             column: value if value is not None else ""
             for column, value in zip(columns, row)
         }
         for row in cursor.fetchall()
     ]
+    logger.info("Overture query returned %d records for city=%r", len(places), city)
+
+    if diagnostics or not places:
+        place_diagnostics = diagnose_place_filters(
+            connection,
+            release,
+            bounds,
+            exact_categories,
+            category_patterns,
+            candidate_limit,
+            country_code,
+            include_rejections=diagnostics and logger.isEnabledFor(logging.DEBUG),
+        )
+        log_place_diagnostics(city, place_diagnostics)
+    return places
 
 
 def has_contact(lead: dict[str, Any]) -> bool:
@@ -908,6 +1300,7 @@ def main() -> int:
     try:
         cities = parse_cities(args.cities)
         exact_categories, category_patterns = niche_filter(args.niche)
+        log_niche_resolution(args.niche, exact_categories, category_patterns)
         release = latest_release()
         candidate_limit = max(args.limit * 3, 100)
         all_leads: list[dict[str, Any]] = []
@@ -952,4 +1345,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     raise SystemExit(main())
