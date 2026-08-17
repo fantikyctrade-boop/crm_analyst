@@ -26,7 +26,8 @@ import duckdb
 
 logger = logging.getLogger(__name__)
 
-STAC_CATALOG = "https://stac.overturemaps.org/catalog.json"
+# The STAC service now exposes its live root catalog at this endpoint.
+STAC_CATALOG = "https://stac.overturemaps.org/"
 NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = "minimal-overture-lead-collector/1.0"
 UKRAINE_SCOPE_NAME = "Вся Україна"
