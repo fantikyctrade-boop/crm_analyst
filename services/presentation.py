@@ -40,6 +40,8 @@ def _safe_link(url: str) -> str:
 
 def _company_text(row: dict[str, str], number: int) -> str:
     name = html.escape(_short(_clean(row.get("name")) or "—", 100))
+    country = html.escape(_short(_clean(row.get("country")) or "—", 40))
+    region = html.escape(_short(_clean(row.get("region")) or "—", 60))
     city = html.escape(_short(_clean(row.get("city")) or "—", 60))
     phone = html.escape(_short(_clean(row.get("phone")) or "—", 100))
     email_value = _clean(row.get("email")).split(",", maxsplit=1)[0].strip()
@@ -86,6 +88,7 @@ def _company_text(row: dict[str, str], number: int) -> str:
 
     return (
         f"<b>{number}. {name}</b>\n"
+        f"Країна / регіон: {country} / {region}\n"
         f"Місто: {city}\n"
         f"Телефон: {phone}\n"
         f"Сайт: {website}\n"

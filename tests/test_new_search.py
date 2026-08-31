@@ -110,11 +110,7 @@ def make_result(directory: str, *, rows: tuple[dict[str, str], ...]) -> SearchRe
 
 
 def keyboard_callbacks(markup: Any) -> set[str | None]:
-    return {
-        button.callback_data
-        for row in markup.inline_keyboard
-        for button in row
-    }
+    return {button.callback_data for row in markup.inline_keyboard for button in row}
 
 
 class NewSearchTest(unittest.IsolatedAsyncioTestCase):
@@ -189,9 +185,9 @@ class NewSearchTest(unittest.IsolatedAsyncioTestCase):
         await begin_search(message, state, pipeline, user_id=1001)
 
         self.assertEqual(state.clear_count, 1)
-        self.assertEqual(state.state, SearchForm.niche)
+        self.assertEqual(state.state, SearchForm.country)
         self.assertIs(pipeline.get_result(1001), old_result)
-        self.assertIn("Введіть нішу", message.answers[-1][0])
+        self.assertIn("Оберіть країну", message.answers[-1][0])
 
     async def test_callback_starts_repeat_search_and_rejects_double_click(self) -> None:
         new_search_debouncer.reset(1001)
@@ -204,7 +200,7 @@ class NewSearchTest(unittest.IsolatedAsyncioTestCase):
         await new_search_callback(callback, state, pipeline)
 
         self.assertEqual(state.clear_count, 1)
-        self.assertEqual(state.state, SearchForm.niche)
+        self.assertEqual(state.state, SearchForm.country)
         self.assertEqual(callback.answers[-1][0], "Новий пошук уже відкрито.")
         new_search_debouncer.reset(1001)
 

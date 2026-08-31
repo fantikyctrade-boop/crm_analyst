@@ -52,8 +52,10 @@ LEAD_TYPE_LABELS = {
 
 
 class SearchForm(StatesGroup):
-    niche = State()
+    country = State()
+    region = State()
     cities = State()
+    niche = State()
     limit = State()
     confirm = State()
 
@@ -98,6 +100,25 @@ def main_keyboard() -> ReplyKeyboardMarkup:
 def cities_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=collector.UKRAINE_SCOPE_NAME)]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+def country_keyboard() -> ReplyKeyboardMarkup:
+    countries = [KeyboardButton(text=name) for name in collector.country_options()]
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            countries[index : index + 2] for index in range(0, len(countries), 2)
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+def region_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Пропустити регіон")]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -187,8 +208,8 @@ async def begin_search(
         await message.answer("Поточний пошук ще виконується. Дочекайтеся завершення.")
         return
     await state.clear()
-    await state.set_state(SearchForm.niche)
-    await message.answer("Введіть нішу, наприклад: автосервіс")
+    await state.set_state(SearchForm.country)
+    await message.answer("Оберіть країну.", reply_markup=country_keyboard())
 
 
 @router.message(CommandStart())
@@ -228,22 +249,32 @@ async def new_search_callback(
         )
 
 
-@router.message(SearchForm.niche)
-async def receive_niche(message: Message, state: FSMContext) -> None:
-    niche = (message.text or "").strip()
-    if not niche:
-        await message.answer("Ніша не може бути порожньою. Спробуйте ще раз.")
-        return
+@router.message(SearchForm.country)
+async def receive_country(message: Message, state: FSMContext) -> None:
     try:
-        collector.niche_filter(niche)
+        country = collector.parse_country(message.text or "")
     except ValueError as error:
-        await message.answer(f"Не вдалося розпізнати нішу: {error}")
+        await message.answer(f"Некоректна країна: {error}")
         return
-    await state.update_data(niche=niche)
+    await state.update_data(country_code=country.code, country_name=country.name)
+    await state.set_state(SearchForm.region)
+    await message.answer(
+        "Введіть штат або регіон (наприклад, California). "
+        "Або натисніть «Пропустити регіон».",
+        reply_markup=region_keyboard(),
+    )
+
+
+@router.message(SearchForm.region)
+async def receive_region(message: Message, state: FSMContext) -> None:
+    region = (message.text or "").strip()
+    if region == "Пропустити регіон":
+        region = ""
+    await state.update_data(region=region)
     await state.set_state(SearchForm.cities)
     await message.answer(
-        "Введіть одне або кілька міст через кому або натисніть «Вся Україна».",
-        reply_markup=cities_keyboard(),
+        "Введіть одне або кілька міст через кому.",
+        reply_markup=ReplyKeyboardRemove(),
     )
 
 
@@ -256,11 +287,24 @@ async def receive_cities(message: Message, state: FSMContext) -> None:
         await message.answer(f"Некоректний список міст: {error}")
         return
     await state.update_data(cities=cities)
+    await state.set_state(SearchForm.niche)
+    await message.answer("Введіть нішу, наприклад: Dental або автосервіс.")
+
+
+@router.message(SearchForm.niche)
+async def receive_niche(message: Message, state: FSMContext) -> None:
+    niche = (message.text or "").strip()
+    if not niche:
+        await message.answer("Ніша не може бути порожньою. Спробуйте ще раз.")
+        return
+    try:
+        collector.niche_filter(niche)
+    except ValueError as error:
+        await message.answer(f"Не вдалося розпізнати нішу: {error}")
+        return
+    await state.update_data(niche=niche)
     await state.set_state(SearchForm.limit)
-    await message.answer(
-        "Введіть потрібну кількість компаній.",
-        reply_markup=ReplyKeyboardRemove(),
-    )
+    await message.answer("Введіть потрібну кількість компаній.")
 
 
 @router.message(SearchForm.limit)
@@ -276,8 +320,10 @@ async def receive_limit(message: Message, state: FSMContext) -> None:
     await state.set_state(SearchForm.confirm)
     await message.answer(
         "<b>Перевірте параметри</b>\n"
-        f"Ніша: {html.escape(data['niche'])}\n"
+        f"Країна: {html.escape(data['country_name'])}\n"
+        f"Регіон: {html.escape(data['region'] or '—')}\n"
         f"Міста: {html.escape(', '.join(data['cities']))}\n"
+        f"Ніша: {html.escape(data['niche'])}\n"
         f"Ліміт: {limit}",
         reply_markup=confirm_keyboard(),
     )
@@ -341,9 +387,20 @@ async def run_search_in_background(
     cities: list[str],
     limit: int,
     instagram_enrichment: InstagramEnrichmentService,
+    country_code: str | None = None,
+    country_name: str = "",
+    region: str = "",
 ) -> None:
     try:
-        result = await pipeline.run(user_id, niche, cities, limit)
+        result = await pipeline.run(
+            user_id,
+            niche,
+            cities,
+            limit,
+            country_code=country_code,
+            country_name=country_name,
+            region=region,
+        )
         await send_search_result(message, result, instagram_enrichment)
     except SearchAlreadyRunningError:
         await message.answer(
@@ -373,7 +430,7 @@ async def run_search(
         return
 
     data = await state.get_data()
-    required = {"niche", "cities", "limit"}
+    required = {"country_code", "country_name", "region", "niche", "cities", "limit"}
     if not required.issubset(data):
         await callback.answer(
             "Параметри застаріли. Почніть новий пошук.", show_alert=True
@@ -382,14 +439,7 @@ async def run_search(
 
     await callback.answer()
     await state.clear()
-    scope_note = (
-        " Пошук по всій Україні може тривати довше."
-        if data["cities"] == [collector.UKRAINE_SCOPE_NAME]
-        else ""
-    )
-    await callback.message.answer(
-        f"Пошук запущено.{scope_note} Це може зайняти кілька хвилин."
-    )
+    await callback.message.answer("Пошук запущено. Це може зайняти кілька хвилин.")
     task = asyncio.create_task(
         run_search_in_background(
             callback.message,
@@ -399,6 +449,9 @@ async def run_search(
             data["cities"],
             data["limit"],
             instagram_enrichment,
+            country_code=data["country_code"],
+            country_name=data["country_name"],
+            region=data["region"],
         )
     )
     background_tasks.add(task)

@@ -47,6 +47,16 @@ class NicheFilterTest(unittest.TestCase):
             [lead_collector.UKRAINE_SCOPE_NAME],
         )
 
+    def test_mvp_countries_and_international_dental_aliases(self) -> None:
+        self.assertEqual(lead_collector.parse_country("USA").code, "US")
+        self.assertEqual(lead_collector.parse_country("Germany").code, "DE")
+        self.assertEqual(lead_collector.parse_country("Poland").code, "PL")
+
+        for niche in ("Dental", "Zahnarzt", "Dentiste", "Dentysta"):
+            with self.subTest(niche=niche):
+                categories, _patterns = lead_collector.niche_filter(niche)
+                self.assertIn("dentist", categories)
+
     def test_common_ukrainian_niches(self) -> None:
         cases = {
             "аптека": "pharmacy",
@@ -171,17 +181,13 @@ class NicheFilterTest(unittest.TestCase):
                 self.assertIn("Оберіть", str(raised.exception))
 
     def test_unknown_niche_only_suggests_and_does_not_map(self) -> None:
-        with self.assertRaises(
-            lead_collector.NicheSelectionRequiredError
-        ) as raised:
+        with self.assertRaises(lead_collector.NicheSelectionRequiredError) as raised:
             lead_collector.niche_filter("невідома тестова ніша")
 
         self.assertEqual(len(raised.exception.suggestions), 3)
         self.assertIn("збір не запущено", str(raised.exception))
 
-        with self.assertRaises(
-            lead_collector.NicheSelectionRequiredError
-        ) as typo:
+        with self.assertRaises(lead_collector.NicheSelectionRequiredError) as typo:
             lead_collector.niche_filter("фотграф")
         self.assertEqual(typo.exception.suggestions[0], "фотограф")
 

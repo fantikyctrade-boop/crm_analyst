@@ -93,9 +93,7 @@ class BotFlowTest(unittest.IsolatedAsyncioTestCase):
                     "services.lead_pipeline.collector.open_overture",
                     return_value=FakeConnection(),
                 ),
-                patch(
-                    "services.lead_pipeline.collector.geocode_city"
-                ) as geocode_city,
+                patch("services.lead_pipeline.collector.geocode_city") as geocode_city,
                 patch(
                     "services.lead_pipeline.collector.fetch_places",
                     side_effect=fetch_places,
@@ -114,16 +112,78 @@ class BotFlowTest(unittest.IsolatedAsyncioTestCase):
             geocode_city.assert_not_called()
             pipeline.cleanup_all()
 
+    async def test_international_search_geocodes_and_filters_selected_country(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            pipeline = LeadPipeline(Path(directory))
+            captured_kwargs: dict[str, object] = {}
+
+            def fetch_places(
+                *args: object, **kwargs: object
+            ) -> list[dict[str, object]]:
+                captured_kwargs.update(kwargs)
+                return fake_places(str(args[2]))[:1]
+
+            with (
+                patch(
+                    "services.lead_pipeline.collector.latest_release",
+                    return_value="mock-release",
+                ),
+                patch(
+                    "services.lead_pipeline.collector.niche_filter",
+                    return_value=(("dentist",), ()),
+                ),
+                patch(
+                    "services.lead_pipeline.collector.open_overture",
+                    return_value=FakeConnection(),
+                ),
+                patch(
+                    "services.lead_pipeline.collector.geocode_city",
+                    return_value=(-122.6, 37.0, -121.9, 38.0),
+                ) as geocode_city,
+                patch(
+                    "services.lead_pipeline.collector.fetch_places",
+                    side_effect=fetch_places,
+                ),
+            ):
+                result = await pipeline.run(
+                    1003,
+                    "Dental",
+                    ["San Francisco"],
+                    1,
+                    country_code="US",
+                    country_name="USA",
+                    region="California",
+                )
+
+            self.assertEqual(result.country_code, "US")
+            self.assertEqual(result.region, "California")
+            self.assertEqual(captured_kwargs["country_code"], "US")
+            self.assertEqual(captured_kwargs["region"], "California")
+            geocode_city.assert_called_once_with(
+                "San Francisco",
+                country_code="US",
+                country_name="USA",
+                region="California",
+            )
+            pipeline.cleanup_all()
+
     async def test_mocked_search_scores_and_replaces_old_run(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             pipeline = LeadPipeline(Path(directory))
 
-            def fetch_places(*args: object, **kwargs: object) -> list[dict[str, object]]:
+            def fetch_places(
+                *args: object, **kwargs: object
+            ) -> list[dict[str, object]]:
                 del kwargs
                 return fake_places(str(args[2]))
 
             patches = (
-                patch("services.lead_pipeline.collector.latest_release", return_value="mock-release"),
+                patch(
+                    "services.lead_pipeline.collector.latest_release",
+                    return_value="mock-release",
+                ),
                 patch(
                     "services.lead_pipeline.collector.niche_filter",
                     return_value=(("automotive_repair",), ()),
@@ -189,9 +249,7 @@ class BotFlowTest(unittest.IsolatedAsyncioTestCase):
                 )
 
             with patch.object(pipeline, "_run_sync", side_effect=slow_run):
-                first = asyncio.create_task(
-                    pipeline.run(1001, "test", ["Київ"], 1)
-                )
+                first = asyncio.create_task(pipeline.run(1001, "test", ["Київ"], 1))
                 await asyncio.to_thread(started.wait, 2)
                 with self.assertRaises(SearchAlreadyRunningError):
                     await pipeline.run(1001, "test", ["Київ"], 1)
