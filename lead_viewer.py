@@ -606,6 +606,8 @@ HTML_TEMPLATE = r"""<!doctype html>
     const priorityRank = { HIGH: 0, MEDIUM: 1, LOW: 2 };
     const labels = {
       name: "Компанія",
+      country: "Країна",
+      region: "Регіон",
       city: "Місто",
       address: "Адреса",
       phone: "Телефон",

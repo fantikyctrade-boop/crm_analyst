@@ -45,6 +45,8 @@ UKRAINE_SCOPE_ALIASES = frozenset(
 
 CSV_FIELDS = (
     "name",
+    "country",
+    "region",
     "city",
     "address",
     "phone",
@@ -55,6 +57,30 @@ CSV_FIELDS = (
     "latitude",
     "longitude",
     "source_release",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class CountryScope:
+    """A supported MVP market used for geocoding and Overture filtering."""
+
+    code: str
+    name: str
+    aliases: tuple[str, ...]
+
+
+SUPPORTED_COUNTRIES = (
+    CountryScope("US", "USA", ("usa", "us", "united states", "сша")),
+    CountryScope(
+        "GB", "UK", ("uk", "gb", "united kingdom", "great britain", "великобританія")
+    ),
+    CountryScope("DE", "Germany", ("germany", "de", "deutschland", "німеччина")),
+    CountryScope("FR", "France", ("france", "fr", "франція")),
+    CountryScope("ES", "Spain", ("spain", "es", "españa", "іспанія")),
+    CountryScope("IT", "Italy", ("italy", "it", "italia", "італія")),
+    CountryScope("NL", "Netherlands", ("netherlands", "nl", "holland", "нідерланди")),
+    CountryScope("PL", "Poland", ("poland", "pl", "polska", "польща")),
+    CountryScope("UA", "Ukraine", ("ukraine", "ua", "україна")),
 )
 
 CAR_SERVICE_CATEGORIES = (
@@ -81,6 +107,20 @@ CAR_SERVICE_CATEGORIES = (
 # Overture category codes. An English Overture code such as ``pharmacy`` or
 # ``beauty_salon`` can also be passed directly.
 NICHE_ALIASES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "dental": (("dentist", "dental_clinic"), ("%dental%",)),
+    "dental clinic": (("dentist", "dental_clinic"), ("%dental%",)),
+    "dental practice": (("dentist", "dental_clinic"), ("%dental%",)),
+    "zahnarzt": (("dentist", "dental_clinic"), ("%dental%",)),
+    "zahnarztpraxis": (("dentist", "dental_clinic"), ("%dental%",)),
+    "dentiste": (("dentist", "dental_clinic"), ("%dental%",)),
+    "clinique dentaire": (("dentist", "dental_clinic"), ("%dental%",)),
+    "dentista": (("dentist", "dental_clinic"), ("%dental%",)),
+    "clinica dental": (("dentist", "dental_clinic"), ("%dental%",)),
+    "studio dentistico": (("dentist", "dental_clinic"), ("%dental%",)),
+    "tandarts": (("dentist", "dental_clinic"), ("%dental%",)),
+    "tandartspraktijk": (("dentist", "dental_clinic"), ("%dental%",)),
+    "dentysta": (("dentist", "dental_clinic"), ("%dental%",)),
+    "gabinet dentystyczny": (("dentist", "dental_clinic"), ("%dental%",)),
     "автосервіс": (CAR_SERVICE_CATEGORIES, ()),
     "автосервис": (CAR_SERVICE_CATEGORIES, ()),
     "сто": (CAR_SERVICE_CATEGORIES, ()),
@@ -570,6 +610,24 @@ def normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", normalized)
 
 
+def country_options() -> tuple[str, ...]:
+    """Return display names for the countries available in the MVP."""
+
+    return tuple(country.name for country in SUPPORTED_COUNTRIES)
+
+
+def parse_country(value: str) -> CountryScope:
+    """Resolve a country name, common alias, or ISO alpha-2 code."""
+
+    normalized = normalize_text(value)
+    for country in SUPPORTED_COUNTRIES:
+        aliases = (country.name, country.code, *country.aliases)
+        if normalized in {normalize_text(alias) for alias in aliases}:
+            return country
+    available = ", ".join(country_options())
+    raise ValueError(f"Unsupported country. Choose one of: {available}.")
+
+
 class NicheSelectionRequiredError(ValueError):
     """Raised when a niche must be selected explicitly instead of guessed."""
 
@@ -581,9 +639,7 @@ class NicheSelectionRequiredError(ValueError):
 
 def normalize_niche_key(value: str) -> str:
     words = (
-        word
-        for word in normalize_text(value).split()
-        if word not in NICHE_FILLER_WORDS
+        word for word in normalize_text(value).split() if word not in NICHE_FILLER_WORDS
     )
     return " ".join(words)
 
@@ -593,9 +649,7 @@ def _build_niche_indexes() -> tuple[
     dict[str, tuple[tuple[str, ...], tuple[str, ...]]],
 ]:
     exact: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
-    simplified_buckets: dict[
-        str, set[tuple[tuple[str, ...], tuple[str, ...]]]
-    ] = {}
+    simplified_buckets: dict[str, set[tuple[tuple[str, ...], tuple[str, ...]]]] = {}
 
     for alias, mapping in NICHE_ALIASES.items():
         exact[normalize_text(alias)] = mapping
@@ -720,14 +774,28 @@ def parse_cities(value: str) -> list[str]:
     return cities
 
 
-def geocode_city(city: str) -> tuple[float, float, float, float]:
+def geocode_city(
+    city: str,
+    *,
+    country_code: str | None = None,
+    country_name: str | None = None,
+    region: str | None = None,
+) -> tuple[float, float, float, float]:
+    """Resolve a city inside an optional country/region to its bounding box."""
+
+    location_parts = [city.strip()]
+    if region and region.strip():
+        location_parts.append(region.strip())
+    if country_name and country_name.strip():
+        location_parts.append(country_name.strip())
     query = urlencode(
         {
-            "q": city,
+            "q": ", ".join(location_parts),
             "format": "jsonv2",
             "limit": 1,
             "featuretype": "city",
-            "accept-language": "uk",
+            "accept-language": "en",
+            **({"countrycodes": country_code.casefold()} if country_code else {}),
         }
     )
     results = fetch_json(f"{NOMINATIM_SEARCH}?{query}")
@@ -856,10 +924,18 @@ def matches_overture_categories(
         return True
 
     for pattern in category_patterns:
-        regex = "^" + "".join(
-            ".*" if character == "%" else "." if character == "_" else re.escape(character)
-            for character in pattern.casefold()
-        ) + "$"
+        regex = (
+            "^"
+            + "".join(
+                ".*"
+                if character == "%"
+                else "."
+                if character == "_"
+                else re.escape(character)
+                for character in pattern.casefold()
+            )
+            + "$"
+        )
         if any(re.fullmatch(regex, value) for value in normalized_values):
             return True
     return False
@@ -868,6 +944,8 @@ def matches_overture_categories(
 def _build_places_query(
     release: str,
     city: str,
+    result_country: str | None,
+    region: str,
     bounds: tuple[float, float, float, float],
     exact_categories: tuple[str, ...],
     category_patterns: tuple[str, ...],
@@ -891,6 +969,8 @@ def _build_places_query(
     query = f"""
         SELECT
             names.primary AS name,
+            COALESCE(addresses[1].country, ?) AS country,
+            ? AS region,
             {city_expression} AS city,
             addresses[1].freeform AS address,
             array_to_string(phones, ', ') AS phone,
@@ -923,6 +1003,8 @@ def _build_places_query(
 
     west, south, east, north = bounds
     parameters: list[Any] = [
+        result_country or "",
+        region,
         city,
         release,
         parquet_path,
@@ -1167,12 +1249,15 @@ def fetch_places(
     category_patterns: tuple[str, ...],
     candidate_limit: int,
     country_code: str | None = None,
+    region: str = "",
     *,
     diagnostics: bool = False,
 ) -> list[dict[str, Any]]:
     query, parameters = _build_places_query(
         release,
         city,
+        country_code,
+        region,
         bounds,
         exact_categories,
         category_patterns,
