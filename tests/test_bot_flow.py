@@ -169,6 +169,61 @@ class BotFlowTest(unittest.IsolatedAsyncioTestCase):
             )
             pipeline.cleanup_all()
 
+    async def test_region_only_search_geocodes_region_and_skips_city_requirement(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            pipeline = LeadPipeline(Path(directory))
+            captured_kwargs: dict[str, object] = {}
+
+            def fetch_places(
+                *args: object, **kwargs: object
+            ) -> list[dict[str, object]]:
+                captured_kwargs.update(kwargs)
+                return fake_places(str(args[2]))[:1]
+
+            with (
+                patch(
+                    "services.lead_pipeline.collector.latest_release",
+                    return_value="mock-release",
+                ),
+                patch(
+                    "services.lead_pipeline.collector.niche_filter",
+                    return_value=(("dentist",), ()),
+                ),
+                patch(
+                    "services.lead_pipeline.collector.open_overture",
+                    return_value=FakeConnection(),
+                ),
+                patch(
+                    "services.lead_pipeline.collector.geocode_city",
+                    return_value=(-106.7, 25.8, -93.5, 36.6),
+                ) as geocode_city,
+                patch(
+                    "services.lead_pipeline.collector.fetch_places",
+                    side_effect=fetch_places,
+                ),
+            ):
+                result = await pipeline.run(
+                    1004,
+                    "Dental",
+                    [],
+                    1,
+                    country_code="US",
+                    country_name="USA",
+                    region="Texas",
+                )
+
+            self.assertEqual(result.cities, ())
+            self.assertEqual(captured_kwargs["region"], "Texas")
+            geocode_city.assert_called_once_with(
+                "Texas",
+                country_code="US",
+                country_name="USA",
+                region="Texas",
+            )
+            pipeline.cleanup_all()
+
     async def test_mocked_search_scores_and_replaces_old_run(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             pipeline = LeadPipeline(Path(directory))

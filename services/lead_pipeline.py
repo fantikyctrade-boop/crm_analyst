@@ -141,7 +141,7 @@ class LeadPipeline:
         scored_csv = run_dir / "scored_leads.csv"
 
         try:
-            parsed_cities = collector.parse_cities(",".join(cities))
+            parsed_cities = collector.parse_cities(",".join(cities)) if cities else []
             exact_categories, category_patterns = collector.niche_filter(niche)
             collector.log_niche_resolution(niche, exact_categories, category_patterns)
             release = collector.latest_release()
@@ -150,7 +150,10 @@ class LeadPipeline:
 
             connection = collector.open_overture()
             try:
-                for city in parsed_cities:
+                search_areas = parsed_cities or [region]
+                for city in search_areas:
+                    if not city:
+                        raise ValueError("Потрібно вказати місто або регіон для пошуку.")
                     if (
                         country_code == collector.UKRAINE_COUNTRY_CODE
                         and collector.is_ukraine_scope(city)

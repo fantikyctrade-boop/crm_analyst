@@ -99,7 +99,10 @@ def main_keyboard() -> ReplyKeyboardMarkup:
 
 def cities_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=collector.UKRAINE_SCOPE_NAME)]],
+        keyboard=[
+            [KeyboardButton(text="Пропустити міста")],
+            [KeyboardButton(text=collector.UKRAINE_SCOPE_NAME)],
+        ],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -273,22 +276,36 @@ async def receive_region(message: Message, state: FSMContext) -> None:
     await state.update_data(region=region)
     await state.set_state(SearchForm.cities)
     await message.answer(
-        "Введіть одне або кілька міст через кому.",
-        reply_markup=ReplyKeyboardRemove(),
+        "Введіть одне або кілька міст через кому. "
+        "Або натисніть «Пропустити міста», щоб шукати по всьому регіону.",
+        reply_markup=cities_keyboard(),
     )
 
 
 @router.message(SearchForm.cities)
 async def receive_cities(message: Message, state: FSMContext) -> None:
     raw_cities = (message.text or "").strip()
-    try:
-        cities = collector.parse_cities(raw_cities)
-    except ValueError as error:
-        await message.answer(f"Некоректний список міст: {error}")
-        return
+    data = await state.get_data()
+    if raw_cities == "Пропустити міста":
+        if not data.get("region"):
+            await message.answer(
+                "Щоб пропустити міста, спочатку вкажіть штат або регіон. "
+                "Або введіть місто."
+            )
+            return
+        cities: list[str] = []
+    else:
+        try:
+            cities = collector.parse_cities(raw_cities)
+        except ValueError as error:
+            await message.answer(f"Некоректний список міст: {error}")
+            return
     await state.update_data(cities=cities)
     await state.set_state(SearchForm.niche)
-    await message.answer("Введіть нішу, наприклад: Dental або автосервіс.")
+    await message.answer(
+        "Введіть нішу, наприклад: Dental або автосервіс.",
+        reply_markup=ReplyKeyboardRemove(),
+    )
 
 
 @router.message(SearchForm.niche)
@@ -322,7 +339,7 @@ async def receive_limit(message: Message, state: FSMContext) -> None:
         "<b>Перевірте параметри</b>\n"
         f"Країна: {html.escape(data['country_name'])}\n"
         f"Регіон: {html.escape(data['region'] or '—')}\n"
-        f"Міста: {html.escape(', '.join(data['cities']))}\n"
+        f"Міста: {html.escape(', '.join(data['cities']) or 'усі в регіоні')}\n"
         f"Ніша: {html.escape(data['niche'])}\n"
         f"Ліміт: {limit}",
         reply_markup=confirm_keyboard(),

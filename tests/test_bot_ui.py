@@ -24,7 +24,7 @@ class BotUiTest(unittest.TestCase):
     def test_aiogram_version_and_keyboards(self) -> None:
         self.assertEqual(str(aiogram.__version__), "3.30.0")
         self.assertEqual(main_keyboard().keyboard[0][0].text, "Новий пошук")
-        self.assertEqual(cities_keyboard().keyboard[0][0].text, "Вся Україна")
+        self.assertEqual(cities_keyboard().keyboard[0][0].text, "Пропустити міста")
         self.assertEqual(
             new_search_keyboard().inline_keyboard[0][0].callback_data,
             "search:new",
