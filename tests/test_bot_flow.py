@@ -196,9 +196,9 @@ class BotFlowTest(unittest.IsolatedAsyncioTestCase):
                     return_value=FakeConnection(),
                 ),
                 patch(
-                    "services.lead_pipeline.collector.geocode_city",
+                    "services.lead_pipeline.collector.geocode_region",
                     return_value=(-106.7, 25.8, -93.5, 36.6),
-                ) as geocode_city,
+                ) as geocode_region,
                 patch(
                     "services.lead_pipeline.collector.fetch_places",
                     side_effect=fetch_places,
@@ -216,11 +216,10 @@ class BotFlowTest(unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(result.cities, ())
             self.assertEqual(captured_kwargs["region"], "Texas")
-            geocode_city.assert_called_once_with(
+            geocode_region.assert_called_once_with(
                 "Texas",
                 country_code="US",
                 country_name="USA",
-                region="Texas",
             )
             pipeline.cleanup_all()
 

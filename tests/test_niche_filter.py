@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 import lead_collector
 
@@ -56,6 +57,25 @@ class NicheFilterTest(unittest.TestCase):
             with self.subTest(niche=niche):
                 categories, _patterns = lead_collector.niche_filter(niche)
                 self.assertIn("dentist", categories)
+
+    def test_region_geocoding_does_not_force_a_city_result(self) -> None:
+        captured_url = ""
+
+        def fake_fetch_json(url: str) -> list[dict[str, object]]:
+            nonlocal captured_url
+            captured_url = url
+            return [{"boundingbox": ["25", "36", "-106", "-93"]}]
+
+        with patch("lead_collector.fetch_json", side_effect=fake_fetch_json):
+            bounds = lead_collector.geocode_region(
+                "Texas",
+                country_code="US",
+                country_name="USA",
+            )
+
+        self.assertEqual(bounds, (-106.0, 25.0, -93.0, 36.0))
+        self.assertIn("q=Texas%2C+USA", captured_url)
+        self.assertNotIn("featuretype=city", captured_url)
 
     def test_common_ukrainian_niches(self) -> None:
         cases = {

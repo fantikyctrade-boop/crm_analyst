@@ -806,6 +806,38 @@ def geocode_city(
     return west, south, east, north
 
 
+def geocode_region(
+    region: str,
+    *,
+    country_code: str | None = None,
+    country_name: str | None = None,
+) -> tuple[float, float, float, float]:
+    """Resolve a state or region to its full bounding box.
+
+    Do not use Nominatim's ``featuretype=city`` here: a region named Texas
+    otherwise resolves to the small locality named Texas rather than the state.
+    """
+
+    location_parts = [region.strip()]
+    if country_name and country_name.strip():
+        location_parts.append(country_name.strip())
+    query = urlencode(
+        {
+            "q": ", ".join(location_parts),
+            "format": "jsonv2",
+            "limit": 1,
+            "accept-language": "en",
+            **({"countrycodes": country_code.casefold()} if country_code else {}),
+        }
+    )
+    results = fetch_json(f"{NOMINATIM_SEARCH}?{query}")
+    if not results:
+        raise RuntimeError(f"Region not found: {region}")
+
+    south, north, west, east = map(float, results[0]["boundingbox"])
+    return west, south, east, north
+
+
 def open_overture() -> duckdb.DuckDBPyConnection:
     connection = duckdb.connect()
     connection.execute("INSTALL httpfs")

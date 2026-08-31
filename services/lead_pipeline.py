@@ -125,6 +125,24 @@ class LeadPipeline:
             self._last_geocode_at = time.monotonic()
             return bounds
 
+    def _geocode_region(
+        self,
+        region: str,
+        country_code: str | None = None,
+        country_name: str = "",
+    ) -> tuple[float, float, float, float]:
+        with self._geocode_lock:
+            delay = 1.0 - (time.monotonic() - self._last_geocode_at)
+            if delay > 0:
+                time.sleep(delay)
+            bounds = collector.geocode_region(
+                region,
+                country_code=country_code,
+                country_name=country_name,
+            )
+            self._last_geocode_at = time.monotonic()
+            return bounds
+
     def _run_sync(
         self,
         user_id: int,
@@ -150,6 +168,7 @@ class LeadPipeline:
 
             connection = collector.open_overture()
             try:
+                region_only_search = not parsed_cities
                 search_areas = parsed_cities or [region]
                 for city in search_areas:
                     if not city:
@@ -161,12 +180,19 @@ class LeadPipeline:
                         bounds = collector.UKRAINE_BOUNDS
                         query_country_code = country_code
                     elif country_code:
-                        bounds = self._geocode_city(
-                            city,
-                            country_code=country_code,
-                            country_name=country_name,
-                            region=region,
-                        )
+                        if region_only_search:
+                            bounds = self._geocode_region(
+                                region,
+                                country_code=country_code,
+                                country_name=country_name,
+                            )
+                        else:
+                            bounds = self._geocode_city(
+                                city,
+                                country_code=country_code,
+                                country_name=country_name,
+                                region=region,
+                            )
                         query_country_code = country_code
                     elif collector.is_ukraine_scope(city):
                         bounds = collector.UKRAINE_BOUNDS
